@@ -150,7 +150,7 @@ Signing scheme: HMAC-SHA256 over a canonical string that includes product
 slug, unix timestamp, nonce, HTTP method, request path, and a hash of the
 body.
 
-Full spec: [docs/billing-sdk/protocol.md](https://github.com/akira-foundation/billing/blob/main/docs/billing-sdk/protocol.md).
+Full spec: [docs/protocol.md](docs/protocol.md).
 
 The fixture vectors in `tests/fixtures/signature-vectors.json` are shared
 with the backend and the Rust crate. Run the test suite to confirm parity:
