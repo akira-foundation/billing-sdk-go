@@ -1,0 +1,38 @@
+[
+    {
+        "name": "basic GET, empty body",
+        "product": "spectra",
+        "timestamp": 1714532400,
+        "nonce": "0123456789abcdef0123456789abcdef",
+        "method": "GET",
+        "path": "/api/v1/me/products/spectra/license",
+        "body": "",
+        "secret": "7d1c6e5b4a3928170f1e2d3c4b5a69788796a5b4c3d2e1f00102030405060708",
+        "canonical": "spectra\n1714532400\n0123456789abcdef0123456789abcdef\nGET\n/api/v1/me/products/spectra/license\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "signature": "999833bb1a68f3a1b86cb9438f2df9e7ac2c08caa7e19817b91eaaec27cf33e8"
+    },
+    {
+        "name": "POST with JSON body",
+        "product": "spectra",
+        "timestamp": 1714532500,
+        "nonce": "abcdef0123456789abcdef0123456789",
+        "method": "POST",
+        "path": "/api/v1/me/licenses/activate",
+        "body": "{\"device_fingerprint\":\"deadbeef\",\"app_version\":\"0.1.0\"}",
+        "secret": "7d1c6e5b4a3928170f1e2d3c4b5a69788796a5b4c3d2e1f00102030405060708",
+        "canonical": "spectra\n1714532500\nabcdef0123456789abcdef0123456789\nPOST\n/api/v1/me/licenses/activate\nc7d402579cd0eff5be6ddf3f2c3216b85ea9c8af3c36fa34f406f48eb7f2e899",
+        "signature": "099584ca77dcc4abfd2a4388228b5550b545271b8a87c3d15826e588ea5c60ae"
+    },
+    {
+        "name": "POST trial empty body",
+        "product": "debugger-app",
+        "timestamp": 1714532600,
+        "nonce": "fedcba9876543210fedcba9876543210",
+        "method": "POST",
+        "path": "/api/v1/me/products/debugger-app/trial",
+        "body": "",
+        "secret": "7d1c6e5b4a3928170f1e2d3c4b5a69788796a5b4c3d2e1f00102030405060708",
+        "canonical": "debugger-app\n1714532600\nfedcba9876543210fedcba9876543210\nPOST\n/api/v1/me/products/debugger-app/trial\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "signature": "e9b81fe52b9f4806154df956d4634721b53fe655ec9e04161fcae495875589cb"
+    }
+]
