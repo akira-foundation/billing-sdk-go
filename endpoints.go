@@ -26,7 +26,7 @@ type APIPlan struct {
 	Currency        *string          `json:"currency"`
 	BillingInterval *string          `json:"billing_interval"`
 	TrialPeriodDays int              `json:"trial_period_days"`
-	StripePriceID   *string          `json:"stripe_price_id"`
+	IsComingSoon    bool             `json:"is_coming_soon"`
 	Features        []APIPlanFeature `json:"features"`
 }
 
