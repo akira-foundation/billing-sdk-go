@@ -1,3 +1,3 @@
-module github.com/akira-foundation/billing-sdk-go
+module github.com/akira-io/billing-sdk-go
 
 go 1.22

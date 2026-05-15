@@ -8,7 +8,7 @@ plans listing. Pass-through for any endpoint via `Client.Do()`.
 ## Install
 
 ```bash
-go get github.com/akira-foundation/billing-sdk-go
+go get github.com/akira-io/billing-sdk-go
 ```
 
 ## Quick start
@@ -21,7 +21,7 @@ import (
     "fmt"
     "log"
 
-    billing "github.com/akira-foundation/billing-sdk-go"
+    billing "github.com/akira-io/billing-sdk-go"
 )
 
 // Injected at build time. See "Build-time secret injection" below.
@@ -161,7 +161,7 @@ go test ./...
 
 ## Sister crate
 
-[`akira-foundation/billing-sdk-rust`](https://github.com/akira-foundation/billing-sdk-rust)
+[`akira-io/billing-sdk-rust`](https://github.com/akira-io/billing-sdk-rust)
 mirrors this API for Tauri and other Rust apps. Both crates pass the same
 shared vectors.
 
