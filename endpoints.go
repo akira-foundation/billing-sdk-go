@@ -312,11 +312,14 @@ type LicensePublicKeysResponse struct {
 
 // UsagePayload mirrors POST /api/me/usage
 type UsagePayload struct {
-	Product  string `json:"product"`
-	Feature  string `json:"feature"`
-	Date     string `json:"date"`
-	DeviceFP string `json:"device_fp"`
-	Action   string `json:"action"` // "check" | "increment"
+	Product    string `json:"product"`
+	Feature    string `json:"feature"`
+	Date       string `json:"date"`
+	DeviceFP   string `json:"device_fp"`
+	Action     string `json:"action"` // "check" | "increment"
+	Platform   string `json:"platform,omitempty"`
+	DeviceType string `json:"device_type,omitempty"`
+	AppVersion string `json:"app_version,omitempty"`
 }
 
 // UsageResponse carries the current count and the plan limit for the feature.

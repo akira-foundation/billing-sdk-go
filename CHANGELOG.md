@@ -4,6 +4,17 @@ All notable changes to `billing-sdk-go` are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the module adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.2] — 2026-05-15
+
+### Added
+
+- `UsagePayload` carries optional `Platform`, `DeviceType`, and
+  `AppVersion` so the server can record device metadata alongside
+  the usage counter. Authenticated and anonymous endpoints both
+  accept the new fields.
+
+[0.1.2]: https://github.com/akira-io/billing-sdk-go/releases/tag/v0.1.2
+
 ## [0.1.1] — 2026-05-15
 
 ### Added
