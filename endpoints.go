@@ -415,3 +415,18 @@ func (c *Client) TrackUsage(ctx context.Context, payload UsagePayload) (*UsageRe
 	}
 	return out, nil
 }
+
+// TrackAnonymousUsage hits POST /api/v1/usage/anonymous (HMAC only, no
+// bearer). Use when the customer is not yet authenticated; the server applies
+// the limits defined on the product's anonymous_plan.
+func (c *Client) TrackAnonymousUsage(ctx context.Context, payload UsagePayload) (*UsageResponse, error) {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	out := &UsageResponse{}
+	if err := c.Do(ctx, "POST", "/api/v1/usage/anonymous", body, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}

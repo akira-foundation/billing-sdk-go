@@ -4,6 +4,17 @@ All notable changes to `billing-sdk-go` are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the module adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] — 2026-05-15
+
+### Added
+
+- `TrackAnonymousUsage(ctx, payload)` — `POST /api/v1/usage/anonymous`.
+  HMAC-only endpoint (no bearer) for metering devices that have not yet
+  authenticated. The server applies the limits defined on the product's
+  `anonymous_plan`.
+
+[0.1.1]: https://github.com/akira-io/billing-sdk-go/releases/tag/v0.1.1
+
 ## [0.1.0] — 2026-05-15
 
 First public release. Go client for the Akira Billing API. Mirrors the Rust
