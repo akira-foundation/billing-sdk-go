@@ -103,9 +103,10 @@ client.SetCustomerToken("existing-bearer")     // restore from keychain
 | `LicenseCheck(ctx, payload)`           | `POST /api/licenses/check`                     | HMAC + bearer |
 | `LicenseActivate(ctx, payload)`        | `POST /api/licenses/activate`                  | HMAC + bearer |
 | `LicenseRefresh(ctx, payload)`         | `POST /api/licenses/refresh`                   | HMAC + bearer |
+| `LicenseSyncUsage(ctx, payload)`       | `POST /api/licenses/sync-usage` (offline mode) | HMAC + bearer |
 | `Entitlements(ctx)`                    | `GET  /api/me/entitlements`                    | HMAC + bearer |
 | `BillingPortal(ctx, returnURL)`        | `GET  /api/billing/portal`                     | HMAC + bearer |
-| `TrackUsage(ctx, payload)`             | `POST /api/me/usage`                           | HMAC + bearer |
+| `TrackUsage(ctx, payload)`             | `POST /api/me/usage` (variable `Count`)        | HMAC + bearer |
 | `LatestRelease(ctx, channel)`          | `GET  /api/v1/downloads/{product}/releases/{channel}/latest` | HMAC only |
 | `IssueDownload(ctx, channel, plat)`    | `GET  /api/v1/downloads/{product}/{channel}/{platform}` | HMAC only |
 | `PublicLicenseKeys(ctx)`               | `GET  /api/v1/license-keys/public`             | unsigned    |
@@ -135,6 +136,71 @@ if err != nil {
     }
     return err
 }
+```
+
+## Licensing modes
+
+Products are tagged server-side with a `licensing_mode`:
+
+| Mode | When to use | Client flow |
+|---|---|---|
+| `offline_snapshot` | Desktop apps. Long-lived entitlement, infrequent sync. | Refresh signed snapshot, decrement local counter, sync deltas periodically. |
+| `online_realtime` | Pay-per-unit (AI tokens, API calls). | Pre-check budget + post-commit actual `Count`. |
+
+### Offline snapshot helpers (`license.go`)
+
+Exports: `DecodeLicense`, `VerifyLicense` (Ed25519 via stdlib),
+`ComputeRemaining`, `IsExpired`, `IsInGrace`, `CanUseUpdate`,
+`PeriodResetAt`.
+
+```go
+resp, err := client.LicenseRefresh(ctx, billing.LicenseRefreshPayload{
+    Product:     "maintainer",
+    Fingerprint: fp,
+})
+if err != nil { return err }
+
+decoded, err := billing.DecodeLicense(resp.License)
+if err != nil { return err }
+
+keys, _ := client.PublicLicenseKeys(ctx)
+ok, _ := billing.VerifyLicense(resp.License, keys.Keys[0].PublicKeyBase64)
+if !ok { return errors.New("forged license") }
+
+remaining, unlim, present := billing.ComputeRemaining(decoded.Payload, "agent_run", localConsumed)
+if !present { return errors.New("unknown feature") }
+if !unlim && remaining == 0 { return errors.New("limit reached") }
+
+next, err := client.LicenseSyncUsage(ctx, billing.LicenseSyncUsagePayload{
+    Product:     "maintainer",
+    Fingerprint: fp,
+    Serial:      decoded.Payload.Serial,
+    Deltas:      map[string]uint64{"agent_run": 3},
+})
+```
+
+### Online realtime (variable `Count`)
+
+```go
+pre, err := client.TrackUsage(ctx, billing.UsagePayload{
+    Product:  "aisite",
+    Feature:  "llm_tokens",
+    Date:     "2026-05-15",
+    DeviceFP: fp,
+    Action:   "check",
+    Count:    4000, // max_tokens estimate
+})
+if err != nil { return err }
+if !pre.Allowed { return errors.New("budget exhausted") }
+
+// call LLM, get actuals
+actual := response.Usage.TotalTokens
+
+_, err = client.TrackUsage(ctx, billing.UsagePayload{
+    Product: "aisite", Feature: "llm_tokens", Date: "2026-05-15", DeviceFP: fp,
+    Action: "increment",
+    Count:  actual,
+})
 ```
 
 ## Build-time secret injection

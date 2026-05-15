@@ -4,6 +4,22 @@ All notable changes to `billing-sdk-go` are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the module adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.3] — 2026-05-15
+
+### Added
+
+- New `license.go` helpers for `offline_snapshot` products:
+  `DecodeLicense`, `VerifyLicense` (Ed25519 via stdlib
+  `crypto/ed25519`), `ComputeRemaining`, `IsExpired`, `IsInGrace`,
+  `CanUseUpdate`, `PeriodResetAt`.
+- `Client.LicenseSyncUsage` POST `/api/licenses/sync-usage` to
+  apply local usage deltas and receive a re-signed snapshot.
+- `UsagePayload.Count int` (`json:"count,omitempty"`) for
+  variable-count realtime tracking (e.g. AI token usage).
+- Types: `LicensingMode`, `UsagePeriod`, `UsageFeatureState`,
+  `LicenseSnapshotPayload`, `LicenseSyncUsagePayload`,
+  `LicenseSyncUsageResponse`.
+
 ## [0.1.2] — 2026-05-15
 
 ### Added

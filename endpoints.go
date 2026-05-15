@@ -317,6 +317,7 @@ type UsagePayload struct {
 	Date       string `json:"date"`
 	DeviceFP   string `json:"device_fp"`
 	Action     string `json:"action"` // "check" | "increment"
+	Count      int    `json:"count,omitempty"`
 	Platform   string `json:"platform,omitempty"`
 	DeviceType string `json:"device_type,omitempty"`
 	AppVersion string `json:"app_version,omitempty"`
@@ -324,9 +325,87 @@ type UsagePayload struct {
 
 // UsageResponse carries the current count and the plan limit for the feature.
 type UsageResponse struct {
-	Count   int  `json:"count"`
-	Limit   *int `json:"limit"`
-	Allowed bool `json:"allowed"`
+	Count   int     `json:"count"`
+	Limit   *int    `json:"limit"`
+	Period  *string `json:"period,omitempty"`
+	Allowed bool    `json:"allowed"`
+}
+
+// LicensingMode mirrors the products.licensing_mode column.
+type LicensingMode string
+
+const (
+	LicensingModeOfflineSnapshot LicensingMode = "offline_snapshot"
+	LicensingModeOnlineRealtime  LicensingMode = "online_realtime"
+)
+
+// UsagePeriod mirrors the plan_feature.usage_period enum.
+type UsagePeriod string
+
+const (
+	UsagePeriodDaily   UsagePeriod = "daily"
+	UsagePeriodWeekly  UsagePeriod = "weekly"
+	UsagePeriodMonthly UsagePeriod = "monthly"
+	UsagePeriodYearly  UsagePeriod = "yearly"
+)
+
+// UsageFeatureState is one entry of the snapshot's `usage` map. Type field
+// switches the union: "bool" or "counter".
+type UsageFeatureState struct {
+	Type             string      `json:"type"`
+	Enabled          bool        `json:"enabled,omitempty"`
+	Allowance        uint64      `json:"allowance,omitempty"`
+	Period           UsagePeriod `json:"period,omitempty"`
+	PeriodStart      string      `json:"period_start,omitempty"`
+	PeriodEnd        string      `json:"period_end,omitempty"`
+	ConsumedAtIssue  uint64      `json:"consumed_at_issue,omitempty"`
+}
+
+// LicenseSnapshotPayload is the decoded JSON of SignedLicense.Payload.
+type LicenseSnapshotPayload struct {
+	V                   int                          `json:"v,omitempty"`
+	KeyID               string                       `json:"key_id"`
+	CustomerID          string                       `json:"customer_id"`
+	ProductKey          string                       `json:"product_key"`
+	PlanKey             string                       `json:"plan_key"`
+	LicensingMode       LicensingMode                `json:"licensing_mode,omitempty"`
+	Features            map[string]bool              `json:"features"`
+	Usage               map[string]UsageFeatureState `json:"usage,omitempty"`
+	FingerprintHash     string                       `json:"fingerprint_hash"`
+	Serial              uint64                       `json:"serial,omitempty"`
+	IssuedAt            string                       `json:"issued_at"`
+	ValidUntil          string                       `json:"valid_until"`
+	PaidUpUntil         *string                      `json:"paid_up_until,omitempty"`
+	FallbackReleaseDate *string                      `json:"fallback_release_date,omitempty"`
+}
+
+// LicenseSyncUsagePayload mirrors POST /api/licenses/sync-usage
+type LicenseSyncUsagePayload struct {
+	Product     string            `json:"product"`
+	Fingerprint string            `json:"fingerprint"`
+	Serial      uint64            `json:"serial"`
+	Deltas      map[string]uint64 `json:"deltas"`
+}
+
+// LicenseSyncUsageResponse carries the re-signed snapshot plus the applied deltas.
+type LicenseSyncUsageResponse struct {
+	License SignedLicense     `json:"license"`
+	Applied map[string]uint64 `json:"applied"`
+	Serial  uint64            `json:"serial"`
+}
+
+// LicenseSyncUsage applies local usage deltas and receives a re-signed
+// snapshot. offline_snapshot products only.
+func (c *Client) LicenseSyncUsage(ctx context.Context, payload LicenseSyncUsagePayload) (*LicenseSyncUsageResponse, error) {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	out := &LicenseSyncUsageResponse{}
+	if err := c.Do(ctx, "POST", "/api/licenses/sync-usage", body, out); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 // CustomerMe fetches the authenticated customer.
