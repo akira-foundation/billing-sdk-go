@@ -4,6 +4,25 @@ All notable changes to `billing-sdk-go` are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the module adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.8] — 2026-05-16
+
+### Added
+
+- `Client.GithubInstallationToken(ctx, payload)` posts
+  `/api/me/github/installation-token` and returns the minted GitHub
+  App installation token.
+- Types: `GithubInstallationTokenPayload`,
+  `GithubInstallationTokenResponse`, `OauthExchangeEntitlement`.
+
+### Changed
+
+- `OauthExchangeCustomer` now exposes `Email` and `Name`.
+- `OauthExchangeResponse` carries `Entitlement` plus a
+  `RequiresPlanSelection` flag so clients can branch into a
+  plan-picker UI when no free plan auto-grant happened.
+
+[0.1.8]: https://github.com/akira-io/billing-sdk-go/releases/tag/v0.1.8
+
 ## [0.1.7] — 2026-05-15
 
 ### Added

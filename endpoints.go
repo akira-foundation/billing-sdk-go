@@ -424,14 +424,48 @@ type OauthExchangePayload struct {
 }
 
 type OauthExchangeCustomer struct {
-	ID        string `json:"id"`
-	ProductID string `json:"product_id"`
+	ID        string  `json:"id"`
+	Email     string  `json:"email"`
+	Name      *string `json:"name"`
+	ProductID string  `json:"product_id"`
+}
+
+type OauthExchangeEntitlement struct {
+	PlanKey *string `json:"plan_key"`
+	Source  string  `json:"source"`
+	EndsAt  *string `json:"ends_at"`
 }
 
 type OauthExchangeResponse struct {
-	AccessToken string                `json:"access_token"`
-	TokenType   string                `json:"token_type"`
-	Customer    OauthExchangeCustomer `json:"customer"`
+	AccessToken           string                    `json:"access_token"`
+	TokenType             string                    `json:"token_type"`
+	Customer              OauthExchangeCustomer     `json:"customer"`
+	Entitlement           *OauthExchangeEntitlement `json:"entitlement"`
+	RequiresPlanSelection bool                      `json:"requires_plan_selection"`
+}
+
+type GithubInstallationTokenPayload struct {
+	InstallationID *uint64 `json:"installation_id,omitempty"`
+}
+
+type GithubInstallationTokenResponse struct {
+	Token          string `json:"token"`
+	ExpiresAt      string `json:"expires_at"`
+	InstallationID int64  `json:"installation_id"`
+	AccountLogin   string `json:"account_login"`
+	AccountType    string `json:"account_type"`
+}
+
+func (c *Client) GithubInstallationToken(ctx context.Context, payload GithubInstallationTokenPayload) (*GithubInstallationTokenResponse, error) {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	out := &GithubInstallationTokenResponse{}
+	if err := c.Do(ctx, "POST", "/api/me/github/installation-token", body, out); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *Client) ListOauthProviders(ctx context.Context, product string) (*OauthProvidersResponse, error) {
