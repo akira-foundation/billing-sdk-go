@@ -4,6 +4,32 @@ All notable changes to `billing-sdk-go` are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the module adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.6] — 2026-05-15
+
+### Added
+
+- `LicenseSnapshotPayload.UpdatesWindowDays` and
+  `LicenseSnapshotPayload.OfflineGraceDays` carried through from the
+  plan-level overrides on the billing server.
+
+### Changed
+
+- `CanUseUpdate` now uses the maximum of `PaidUpUntil` and
+  `FallbackReleaseDate`, extended by `UpdatesWindowDays`, before
+  comparing against the release date. Snapshots without any of the
+  three fields still allow all releases.
+
+[0.1.6]: https://github.com/akira-io/billing-sdk-go/releases/tag/v0.1.6
+
+## [0.1.5] — 2026-05-15
+
+### Changed
+
+- Version bump to align all three SDKs (JS, Rust, Go) on the same
+  release number. No code or API changes.
+
+[0.1.5]: https://github.com/akira-io/billing-sdk-go/releases/tag/v0.1.5
+
 ## [0.1.3] — 2026-05-15
 
 ### Added

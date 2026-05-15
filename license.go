@@ -107,16 +107,41 @@ func IsInGrace(payload LicenseSnapshotPayload, graceSeconds int64, now time.Time
 }
 
 // CanUseUpdate reports whether a release dated `releaseDate` can be installed
-// under this license. When paid_up_until is missing returns true.
+// under this license. Uses the max of paid_up_until and fallback_release_date,
+// extended by updates_window_days. When both are missing returns true.
 func CanUseUpdate(payload LicenseSnapshotPayload, releaseDate time.Time) bool {
-	if payload.PaidUpUntil == nil {
+	var paidUp, fallback time.Time
+	var paidUpOk, fallbackOk bool
+
+	if payload.PaidUpUntil != nil {
+		if t, err := time.Parse(time.RFC3339, *payload.PaidUpUntil); err == nil {
+			paidUp = t
+			paidUpOk = true
+		}
+	}
+	if payload.FallbackReleaseDate != nil {
+		if t, err := time.Parse(time.RFC3339, *payload.FallbackReleaseDate); err == nil {
+			fallback = t
+			fallbackOk = true
+		}
+	}
+
+	if !paidUpOk && !fallbackOk {
 		return true
 	}
-	paidUp, err := time.Parse(time.RFC3339, *payload.PaidUpUntil)
-	if err != nil {
-		return true
+
+	effective := paidUp
+	if fallbackOk && (!paidUpOk || fallback.After(paidUp)) {
+		effective = fallback
 	}
-	return !releaseDate.After(paidUp)
+
+	var windowDays int
+	if payload.UpdatesWindowDays != nil {
+		windowDays = int(*payload.UpdatesWindowDays)
+	}
+	cutoff := effective.Add(time.Duration(windowDays) * 24 * time.Hour)
+
+	return !releaseDate.After(cutoff)
 }
 
 // PeriodResetAt returns the period_end timestamp for a counter feature, or

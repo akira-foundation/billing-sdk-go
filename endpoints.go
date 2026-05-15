@@ -377,6 +377,8 @@ type LicenseSnapshotPayload struct {
 	ValidUntil          string                       `json:"valid_until"`
 	PaidUpUntil         *string                      `json:"paid_up_until,omitempty"`
 	FallbackReleaseDate *string                      `json:"fallback_release_date,omitempty"`
+	UpdatesWindowDays   *uint32                      `json:"updates_window_days,omitempty"`
+	OfflineGraceDays    *uint32                      `json:"offline_grace_days,omitempty"`
 }
 
 // LicenseSyncUsagePayload mirrors POST /api/licenses/sync-usage

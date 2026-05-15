@@ -179,8 +179,34 @@ func TestCanUseUpdate(t *testing.T) {
 	}
 
 	p.PaidUpUntil = nil
+	p.FallbackReleaseDate = nil
 	if !CanUseUpdate(p, time.Date(2099, 1, 1, 0, 0, 0, 0, time.UTC)) {
-		t.Fatalf("nil paid_up_until should allow all")
+		t.Fatalf("nil paid_up_until + fallback should allow all")
+	}
+}
+
+func TestCanUseUpdateExtendsWithWindow(t *testing.T) {
+	p := basePayload()
+	window := uint32(365)
+	p.UpdatesWindowDays = &window
+
+	if !CanUseUpdate(p, time.Date(2028, 4, 1, 0, 0, 0, 0, time.UTC)) {
+		t.Fatalf("should allow within window")
+	}
+	if CanUseUpdate(p, time.Date(2028, 12, 1, 0, 0, 0, 0, time.UTC)) {
+		t.Fatalf("should block beyond window")
+	}
+}
+
+func TestCanUseUpdateUsesMaxOfPaidUpAndFallback(t *testing.T) {
+	p := basePayload()
+	paid := "2026-01-01T00:00:00Z"
+	fallback := "2027-12-31T00:00:00Z"
+	p.PaidUpUntil = &paid
+	p.FallbackReleaseDate = &fallback
+
+	if !CanUseUpdate(p, time.Date(2027, 6, 1, 0, 0, 0, 0, time.UTC)) {
+		t.Fatalf("fallback should extend window")
 	}
 }
 
