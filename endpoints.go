@@ -396,8 +396,66 @@ type LicenseSyncUsageResponse struct {
 	Serial  uint64            `json:"serial"`
 }
 
-// LicenseSyncUsage applies local usage deltas and receives a re-signed
-// snapshot. offline_snapshot products only.
+type OauthProvider string
+
+const (
+	OauthProviderGoogle    OauthProvider = "google"
+	OauthProviderGitHub    OauthProvider = "github"
+	OauthProviderApple     OauthProvider = "apple"
+	OauthProviderMicrosoft OauthProvider = "microsoft"
+	OauthProviderGitLab    OauthProvider = "gitlab"
+	OauthProviderBitbucket OauthProvider = "bitbucket"
+)
+
+type OauthProviderInfo struct {
+	Provider OauthProvider `json:"provider"`
+	Label    string        `json:"label"`
+	Scopes   []string      `json:"scopes"`
+}
+
+type OauthProvidersResponse struct {
+	Product   string              `json:"product"`
+	Providers []OauthProviderInfo `json:"providers"`
+}
+
+type OauthExchangePayload struct {
+	Code         string `json:"code"`
+	CodeVerifier string `json:"code_verifier"`
+}
+
+type OauthExchangeCustomer struct {
+	ID        string `json:"id"`
+	ProductID string `json:"product_id"`
+}
+
+type OauthExchangeResponse struct {
+	AccessToken string                `json:"access_token"`
+	TokenType   string                `json:"token_type"`
+	Customer    OauthExchangeCustomer `json:"customer"`
+}
+
+func (c *Client) ListOauthProviders(ctx context.Context, product string) (*OauthProvidersResponse, error) {
+	out := &OauthProvidersResponse{}
+	path := "/api/v1/products/" + url.PathEscape(product) + "/auth/providers"
+	if err := c.Do(ctx, "GET", path, nil, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *Client) ExchangeOauthCode(ctx context.Context, payload OauthExchangePayload) (*OauthExchangeResponse, error) {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	out := &OauthExchangeResponse{}
+	if err := c.Do(ctx, "POST", "/api/auth/oauth/exchange", body, out); err != nil {
+		return nil, err
+	}
+	c.SetCustomerToken(out.AccessToken)
+	return out, nil
+}
+
 func (c *Client) LicenseSyncUsage(ctx context.Context, payload LicenseSyncUsagePayload) (*LicenseSyncUsageResponse, error) {
 	body, err := json.Marshal(payload)
 	if err != nil {
