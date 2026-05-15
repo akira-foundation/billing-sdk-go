@@ -2,8 +2,10 @@
 
 Go client for the [Akira Billing API](https://github.com/akira-foundation/billing).
 
-Handles request signing, OTP login, license activation, trial start, and
-plans listing. Pass-through for any endpoint via `Client.Do()`.
+Handles request signing, OTP login, full license lifecycle (check / activate
+/ refresh), entitlements, customer profile, billing portal, per-day usage
+tracking, downloads, trial start, and plans listing. Pass-through for any
+endpoint via `Client.Do()` (signed) or `Client.DoPublic()` (unsigned).
 
 ## Install
 
@@ -97,11 +99,21 @@ client.SetCustomerToken("existing-bearer")     // restore from keychain
 | `RequestOTP(ctx, payload)`             | `POST /api/auth/customer/otp/request`          | HMAC only   |
 | `VerifyOTP(ctx, payload)`              | `POST /api/auth/customer/otp/verify`           | HMAC only   |
 | `StartTrial(ctx, planKey)`             | `POST /api/v1/me/products/{key}/trial`         | HMAC + bearer |
+| `CustomerMe(ctx)`                      | `GET  /api/me`                                 | HMAC + bearer |
+| `LicenseCheck(ctx, payload)`           | `POST /api/licenses/check`                     | HMAC + bearer |
+| `LicenseActivate(ctx, payload)`        | `POST /api/licenses/activate`                  | HMAC + bearer |
+| `LicenseRefresh(ctx, payload)`         | `POST /api/licenses/refresh`                   | HMAC + bearer |
+| `Entitlements(ctx)`                    | `GET  /api/me/entitlements`                    | HMAC + bearer |
+| `BillingPortal(ctx, returnURL)`        | `GET  /api/billing/portal`                     | HMAC + bearer |
+| `TrackUsage(ctx, payload)`             | `POST /api/me/usage`                           | HMAC + bearer |
+| `LatestRelease(ctx, channel)`          | `GET  /api/v1/downloads/{product}/releases/{channel}/latest` | HMAC only |
+| `IssueDownload(ctx, channel, plat)`    | `GET  /api/v1/downloads/{product}/{channel}/{platform}` | HMAC only |
+| `PublicLicenseKeys(ctx)`               | `GET  /api/v1/license-keys/public`             | unsigned    |
 | `Do(ctx, method, path, body, out)`     | any                                            | HMAC (+ bearer if set) |
+| `DoPublic(ctx, method, path, body, out)` | any                                          | unsigned    |
 
-`Do()` is the escape hatch for endpoints the SDK hasn't typed yet (license
-activate/refresh, checkout, etc). Build the payload yourself and unmarshal
-into a struct you provide.
+`Do()` and `DoPublic()` are escape hatches for endpoints the SDK hasn't typed
+yet. Build the payload yourself and unmarshal into a struct you provide.
 
 ## Error handling
 

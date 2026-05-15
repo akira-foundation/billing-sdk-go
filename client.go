@@ -100,3 +100,44 @@ func (c *Client) Do(ctx context.Context, method, path string, body []byte, out a
 
 	return json.NewDecoder(resp.Body).Decode(out)
 }
+
+// DoPublic dispatches a request without HMAC headers and without the customer
+// bearer. Use only for endpoints documented as unauthenticated.
+func (c *Client) DoPublic(ctx context.Context, method, path string, body []byte, out any) error {
+	endpoint, err := url.JoinPath(c.BaseURL, path)
+	if err != nil {
+		return fmt.Errorf("billing: build url: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, method, endpoint, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("billing: build request: %w", err)
+	}
+
+	req.Header.Set("Accept", "application/json")
+	if len(body) > 0 {
+		req.Header.Set("Content-Type", "application/json")
+	}
+
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return fmt.Errorf("billing: do: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		raw, _ := io.ReadAll(resp.Body)
+		apiErr := &APIError{Status: resp.StatusCode}
+		_ = json.Unmarshal(raw, apiErr)
+		if apiErr.Code == "" {
+			apiErr.Code = string(raw)
+		}
+		return apiErr
+	}
+
+	if out == nil {
+		return nil
+	}
+
+	return json.NewDecoder(resp.Body).Decode(out)
+}
