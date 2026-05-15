@@ -3,6 +3,9 @@ package billing
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
 	"time"
 )
 
@@ -68,6 +71,91 @@ type OtpVerifyResponse struct {
 		ID    string `json:"id"`
 		Email string `json:"email"`
 	} `json:"customer"`
+}
+
+// ReleaseAsset describes a single downloadable artifact in a release manifest.
+type ReleaseAsset struct {
+	OS        string `json:"os"`
+	Arch      string `json:"arch"`
+	Format    string `json:"format"`
+	ObjectKey string `json:"object_key"`
+	SizeBytes int64  `json:"size_bytes"`
+	SHA256    string `json:"sha256"`
+}
+
+// ReleaseManifest mirrors GET /api/v1/downloads/{product}/releases/{channel}/latest
+type ReleaseManifest struct {
+	Version    string         `json:"version"`
+	Channel    string         `json:"channel"`
+	ReleasedAt time.Time      `json:"released_at"`
+	NotesURL   *string        `json:"notes_url"`
+	Assets     []ReleaseAsset `json:"assets"`
+}
+
+// IssuedDownload mirrors GET /api/v1/downloads/{product}/{channel}/{platform} (Accept: application/json)
+type IssuedDownload struct {
+	EventID   string    `json:"eventId"`
+	Product   string    `json:"product"`
+	Version   string    `json:"version"`
+	Channel   string    `json:"channel"`
+	OS        string    `json:"os"`
+	Arch      string    `json:"arch"`
+	Format    string    `json:"format"`
+	SizeBytes int64     `json:"sizeBytes"`
+	SHA256    string    `json:"sha256"`
+	SignedURL string    `json:"signedUrl"`
+	ExpiresAt time.Time `json:"expiresAt"`
+	BeaconURL string    `json:"beaconUrl"`
+}
+
+// LatestRelease fetches the current release manifest for a channel.
+// Channel is one of "stable", "beta", "nightly".
+func (c *Client) LatestRelease(ctx context.Context, channel string) (*ReleaseManifest, error) {
+	out := &ReleaseManifest{}
+	path := "/api/v1/downloads/" + c.ProductSlug + "/releases/" + channel + "/latest"
+	if err := c.Do(ctx, "GET", path, nil, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// IssueDownload requests a signed URL for the matching asset and records a
+// DownloadEvent on the backend. Platform is "os-arch", e.g. "macos-arm64".
+func (c *Client) IssueDownload(ctx context.Context, channel, platform string) (*IssuedDownload, error) {
+	out := &IssuedDownload{}
+	path := "/api/v1/downloads/" + c.ProductSlug + "/" + channel + "/" + platform
+	if err := c.Do(ctx, "GET", path, nil, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// CompleteDownload posts the completion beacon for an issued event. The
+// beacon URL is the absolute URL returned in IssuedDownload.BeaconURL, which
+// already carries the signature query string. No HMAC signing.
+func (c *Client) CompleteDownload(ctx context.Context, beaconURL string) error {
+	req, err := http.NewRequestWithContext(ctx, "POST", beaconURL, nil)
+	if err != nil {
+		return fmt.Errorf("billing: build beacon request: %w", err)
+	}
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		return fmt.Errorf("billing: complete download: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		raw, _ := io.ReadAll(resp.Body)
+		apiErr := &APIError{Status: resp.StatusCode}
+		_ = json.Unmarshal(raw, apiErr)
+		if apiErr.Code == "" {
+			apiErr.Code = string(raw)
+		}
+		return apiErr
+	}
+	return nil
 }
 
 // Plans fetches the public plans payload for the configured product.
