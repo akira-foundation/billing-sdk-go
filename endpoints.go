@@ -578,6 +578,48 @@ func (c *Client) PublicLicenseKeys(ctx context.Context) (*LicensePublicKeysRespo
 	return out, nil
 }
 
+type GithubAppInfo struct {
+	Slug       string `json:"slug"`
+	InstallURL string `json:"install_url"`
+}
+
+// GithubAppInfo returns public GitHub App metadata (slug + install URL).
+func (c *Client) GithubAppInfo(ctx context.Context) (*GithubAppInfo, error) {
+	out := &GithubAppInfo{}
+	if err := c.DoPublic(ctx, "GET", "/api/v1/github/app", nil, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+type GithubUserSummary struct {
+	ID    uint64 `json:"id"`
+	Login string `json:"login"`
+}
+
+type GithubUserInstallation struct {
+	ID            uint64 `json:"id"`
+	HTMLURL       string `json:"html_url"`
+	AccountID     uint64 `json:"account_id"`
+	AccountLogin  string `json:"account_login"`
+	AccountType   string `json:"account_type"`
+	TargetType    string `json:"target_type"`
+}
+
+type GithubUserInstallationsResponse struct {
+	User          GithubUserSummary        `json:"user"`
+	Installations []GithubUserInstallation `json:"installations"`
+}
+
+// MeGithubInstallations returns the authenticated customer's GitHub user info and installations.
+func (c *Client) MeGithubInstallations(ctx context.Context) (*GithubUserInstallationsResponse, error) {
+	out := &GithubUserInstallationsResponse{}
+	if err := c.Do(ctx, "GET", "/api/me/github/installations", nil, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // TrackUsage hits POST /api/me/usage to either check or increment the per-day
 // counter for (customer, product, feature, device_fp).
 func (c *Client) TrackUsage(ctx context.Context, payload UsagePayload) (*UsageResponse, error) {
