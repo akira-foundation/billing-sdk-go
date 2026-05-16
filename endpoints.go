@@ -559,6 +559,20 @@ func (c *Client) Entitlements(ctx context.Context) (*EntitlementsResponse, error
 	return out, nil
 }
 
+type CustomerFeaturesResponse struct {
+	Product  string   `json:"product"`
+	Features []string `json:"features"`
+}
+
+func (c *Client) CustomerFeatures(ctx context.Context, product string) (*CustomerFeaturesResponse, error) {
+	path := "/api/me/features?product=" + url.QueryEscape(product)
+	out := &CustomerFeaturesResponse{}
+	if err := c.Do(ctx, "GET", path, nil, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // BillingPortal returns a short-lived Stripe customer portal URL.
 func (c *Client) BillingPortal(ctx context.Context, returnURL string) (*PortalLink, error) {
 	path := "/api/billing/portal?return_url=" + url.QueryEscape(returnURL)
