@@ -4,6 +4,26 @@ All notable changes to `billing-sdk-go` are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the module adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] — 2026-05-16
+
+### Added
+
+- `Gate` type (`gate.go`) wrapping verify + lifecycle state + `ComputeRemaining`
+  in a single `Check(ctx, feature)` call. `Require` returns a typed `GateDenied`
+  error. Configurable via `GateOptions{Loader, LocalConsumption, GraceWindow, Now}`.
+- `FeatureAccess` result struct exposing `Allowed`, `HasFeature`, `Unlimited`,
+  `Remaining`, `Reason`, `Plan`, `State`.
+- `IsGateDenied(err)` helper for typed error introspection.
+- `LicenseState` enum (`none|invalid|active|trialing|grace|expired`) with
+  `ComputeState(payload, graceWindow, now)` and `TrialDaysLeft(payload, now)`
+  helpers. Trial detected via feature `__trial=true` or plan key suffix `:trial`.
+- `UsageTracker` (`usage.go`) with pluggable `UsageBuffer` interface (`Add`,
+  `Drain`, `Restore`) for buffered counter sync. Background flusher via
+  `Start(ctx)` / `Stop(ctx)`, manual `Flush(ctx)`, default 5m interval.
+- `MemoryBuffer` reference implementation of `UsageBuffer`.
+
+[0.2.0]: https://github.com/akira-io/billing-sdk-go/releases/tag/v0.2.0
+
 ## [0.1.8] — 2026-05-16
 
 ### Added
