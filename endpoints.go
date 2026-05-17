@@ -565,7 +565,7 @@ type CustomerFeaturesResponse struct {
 }
 
 func (c *Client) CustomerFeatures(ctx context.Context, product string) (*CustomerFeaturesResponse, error) {
-	path := "/api/me/features?product=" + url.QueryEscape(product)
+	path := "/api/me/features/" + url.PathEscape(product)
 	out := &CustomerFeaturesResponse{}
 	if err := c.Do(ctx, "GET", path, nil, out); err != nil {
 		return nil, err
