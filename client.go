@@ -38,12 +38,20 @@ func (c *Client) SetCustomerToken(token string) {
 
 // APIError represents a non-2xx response with the server-provided error code.
 type APIError struct {
-	Status int    `json:"-"`
-	Code   string `json:"error"`
+	Status  int    `json:"-"`
+	Code    string `json:"error"`
+	Message string `json:"message"`
+}
+
+func (e *APIError) reason() string {
+	if e.Code != "" {
+		return e.Code
+	}
+	return e.Message
 }
 
 func (e *APIError) Error() string {
-	return fmt.Sprintf("billing api %d: %s", e.Status, e.Code)
+	return fmt.Sprintf("billing api %d: %s", e.Status, e.reason())
 }
 
 // Do builds, signs and dispatches a request, then decodes JSON into out (if non-nil).
@@ -88,7 +96,7 @@ func (c *Client) Do(ctx context.Context, method, path string, body []byte, out a
 		raw, _ := io.ReadAll(resp.Body)
 		apiErr := &APIError{Status: resp.StatusCode}
 		_ = json.Unmarshal(raw, apiErr)
-		if apiErr.Code == "" {
+		if apiErr.Code == "" && apiErr.Message == "" {
 			apiErr.Code = string(raw)
 		}
 		return apiErr
@@ -129,7 +137,7 @@ func (c *Client) DoPublic(ctx context.Context, method, path string, body []byte,
 		raw, _ := io.ReadAll(resp.Body)
 		apiErr := &APIError{Status: resp.StatusCode}
 		_ = json.Unmarshal(raw, apiErr)
-		if apiErr.Code == "" {
+		if apiErr.Code == "" && apiErr.Message == "" {
 			apiErr.Code = string(raw)
 		}
 		return apiErr

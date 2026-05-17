@@ -151,7 +151,7 @@ func (c *Client) CompleteDownload(ctx context.Context, beaconURL string) error {
 		raw, _ := io.ReadAll(resp.Body)
 		apiErr := &APIError{Status: resp.StatusCode}
 		_ = json.Unmarshal(raw, apiErr)
-		if apiErr.Code == "" {
+		if apiErr.Code == "" && apiErr.Message == "" {
 			apiErr.Code = string(raw)
 		}
 		return apiErr
