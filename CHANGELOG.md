@@ -4,158 +4,128 @@ All notable changes to `billing-sdk-go` are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the module adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.0] — 2026-05-16
+## [0.4.0] - 2026-05-19
 
 ### Added
 
-- `Gate` type (`gate.go`) wrapping verify + lifecycle state + `ComputeRemaining`
-  in a single `Check(ctx, feature)` call. `Require` returns a typed `GateDenied`
-  error. Configurable via `GateOptions{Loader, LocalConsumption, GraceWindow, Now}`.
-- `FeatureAccess` result struct exposing `Allowed`, `HasFeature`, `Unlimited`,
-  `Remaining`, `Reason`, `Plan`, `State`.
-- `IsGateDenied(err)` helper for typed error introspection.
-- `LicenseState` enum (`none|invalid|active|trialing|grace|expired`) with
-  `ComputeState(payload, graceWindow, now)` and `TrialDaysLeft(payload, now)`
-  helpers. Trial detected via feature `__trial=true` or plan key suffix `:trial`.
-- `UsageTracker` (`usage.go`) with pluggable `UsageBuffer` interface (`Add`,
-  `Drain`, `Restore`) for buffered counter sync. Background flusher via
-  `Start(ctx)` / `Stop(ctx)`, manual `Flush(ctx)`, default 5m interval.
-- `MemoryBuffer` reference implementation of `UsageBuffer`.
-
-[0.2.0]: https://github.com/akira-io/billing-sdk-go/releases/tag/v0.2.0
-
-## [0.1.8] — 2026-05-16
-
-### Added
-
-- `Client.GithubInstallationToken(ctx, payload)` posts
-  `/api/me/github/installation-token` and returns the minted GitHub
-  App installation token.
-- Types: `GithubInstallationTokenPayload`,
-  `GithubInstallationTokenResponse`, `OauthExchangeEntitlement`.
+- OS/Arch/Platform with DetectPlatform, Slug, DownloadURL + PickDownloadURL.
 
 ### Changed
 
-- `OauthExchangeCustomer` now exposes `Email` and `Name`.
-- `OauthExchangeResponse` carries `Entitlement` plus a
-  `RequiresPlanSelection` flag so clients can branch into a
-  plan-picker UI when no free plan auto-grant happened.
+- Split flat package into per-concern sub-packages.
+- Strip narrative GoDoc on self-evident exports.
+- Remove all leading // comments from sub-packages.
 
-[0.1.8]: https://github.com/akira-io/billing-sdk-go/releases/tag/v0.1.8
+### Documentation
 
-## [0.1.7] — 2026-05-15
+- Full module reference under docs/ with tens-block numbering.
 
-### Added
+## [0.3.6] - 2026-05-17
 
-- New `oauth.go` with `GeneratePkceChallenge`, `GenerateOauthState`,
-  and `BuildOauthInitURL` helpers for the Authorization Code + PKCE
-  flow brokered by billing.
-- `Client.ListOauthProviders(ctx, product)` returns the enabled
-  providers + scopes for a product.
-- `Client.ExchangeOauthCode(ctx, payload)` redeems a one-time code for
-  a customer access token and stores it on the client.
-- Types: `OauthProvider`, `OauthProviderInfo`, `OauthProvidersResponse`,
-  `OauthExchangePayload`, `OauthExchangeResponse`, `PkceChallenge`,
-  `BuildOauthInitUrlOptions`.
+### Fixed
 
-[0.1.7]: https://github.com/akira-io/billing-sdk-go/releases/tag/v0.1.7
+- Parse error fallback to message field.
 
-## [0.1.6] — 2026-05-15
+## [0.3.5] - 2026-05-17
+
+### Fixed
+
+- Use path param for CustomerFeatures.
+
+## [0.3.4] - 2026-05-17
 
 ### Added
 
-- `LicenseSnapshotPayload.UpdatesWindowDays` and
-  `LicenseSnapshotPayload.OfflineGraceDays` carried through from the
-  plan-level overrides on the billing server.
+- AuthSnapshot + RefreshAuth helper.
 
-### Changed
-
-- `CanUseUpdate` now uses the maximum of `PaidUpUntil` and
-  `FallbackReleaseDate`, extended by `UpdatesWindowDays`, before
-  comparing against the release date. Snapshots without any of the
-  three fields still allow all releases.
-
-[0.1.6]: https://github.com/akira-io/billing-sdk-go/releases/tag/v0.1.6
-
-## [0.1.5] — 2026-05-15
-
-### Changed
-
-- Version bump to align all three SDKs (JS, Rust, Go) on the same
-  release number. No code or API changes.
-
-[0.1.5]: https://github.com/akira-io/billing-sdk-go/releases/tag/v0.1.5
-
-## [0.1.3] — 2026-05-15
+## [0.3.3] - 2026-05-16
 
 ### Added
 
-- New `license.go` helpers for `offline_snapshot` products:
-  `DecodeLicense`, `VerifyLicense` (Ed25519 via stdlib
-  `crypto/ed25519`), `ComputeRemaining`, `IsExpired`, `IsInGrace`,
-  `CanUseUpdate`, `PeriodResetAt`.
-- `Client.LicenseSyncUsage` POST `/api/licenses/sync-usage` to
-  apply local usage deltas and receive a re-signed snapshot.
-- `UsagePayload.Count int` (`json:"count,omitempty"`) for
-  variable-count realtime tracking (e.g. AI token usage).
-- Types: `LicensingMode`, `UsagePeriod`, `UsageFeatureState`,
-  `LicenseSnapshotPayload`, `LicenseSyncUsagePayload`,
-  `LicenseSyncUsageResponse`.
+- CustomerFeatures endpoint method.
 
-## [0.1.2] — 2026-05-15
+## [0.3.2] - 2026-05-16
 
 ### Added
 
-- `UsagePayload` carries optional `Platform`, `DeviceType`, and
-  `AppVersion` so the server can record device metadata alongside
-  the usage counter. Authenticated and anonymous endpoints both
-  accept the new fields.
+- TokenCipher (AES-256-GCM) and KeyStore with debug file fallback.
 
-[0.1.2]: https://github.com/akira-io/billing-sdk-go/releases/tag/v0.1.2
-
-## [0.1.1] — 2026-05-15
+## [0.3.1] - 2026-05-16
 
 ### Added
 
-- `TrackAnonymousUsage(ctx, payload)` — `POST /api/v1/usage/anonymous`.
-  HMAC-only endpoint (no bearer) for metering devices that have not yet
-  authenticated. The server applies the limits defined on the product's
-  `anonymous_plan`.
+- SDK CheckoutURL helper.
 
-[0.1.1]: https://github.com/akira-io/billing-sdk-go/releases/tag/v0.1.1
+## [0.3.0] - 2026-05-16
 
-## [0.1.0] — 2026-05-15
+### Added
 
-First public release. Go client for the Akira Billing API. Mirrors the Rust
-and JS SDKs and shares the same HMAC wire protocol.
+- SDK desktop package and OAuth loopback helper.
 
-### Client surface
+## [0.2.0] - 2026-05-16
 
-- OTP login: `RequestOTP`, `VerifyOTP` (auto-stores the bearer).
-- Customer profile: `CustomerMe`.
-- License lifecycle: `LicenseCheck`, `LicenseActivate`, `LicenseRefresh`.
-  Activation and refresh return `SignedLicense` (key_id, algorithm, base64
-  payload, base64 signature, valid_until) so clients can verify the envelope
-  offline with the matching Ed25519 public key.
-- Entitlements snapshot: `Entitlements`.
-- Stripe billing portal short-lived URL: `BillingPortal(returnURL)`.
-- Usage tracking: `TrackUsage` with `check` / `increment` actions.
-- Trials: `StartTrial(planKey)`.
-- Plans listing: `Plans()`.
-- Downloads: `LatestRelease(channel)`, `IssueDownload(channel, platform)`.
-- Unsigned key set fetch: `PublicLicenseKeys()` for build-time embedding of
-  the Ed25519 verification keys.
+### Added
 
-### Tooling
+- Add Gate, UsageTracker, LicenseState helpers.
 
-- `Client.Do(ctx, method, path, body, out)` for typed signed requests.
-- `Client.DoPublic(ctx, method, path, body, out)` for unauthenticated
-  endpoints (no HMAC, no bearer).
-- HMAC signing helpers exported as `Canonical`, `Sign`, `NewNonce` so
-  callers can sign requests for endpoints the SDK has not yet typed.
-- `APIError{Status, Code}` carries the server error payload.
-- Standard `net/http` client; configurable timeout and transport.
-- Shared signature test vectors against the Rust SDK ensure wire-level
-  parity.
+## [0.1.9] - 2026-05-16
 
-[0.1.0]: https://github.com/akira-io/billing-sdk-go/releases/tag/v0.1.0
+### Added
+
+- App metadata + user installations.
+
+## [0.1.8] - 2026-05-15
+
+### Added
+
+- GithubInstallationToken + entitlement on exchange response.
+
+## [0.1.7] - 2026-05-15
+
+### Added
+
+- PKCE helpers + ListOauthProviders + ExchangeOauthCode.
+
+## [0.1.6] - 2026-05-15
+
+### Added
+
+- Plan-driven updates_window_days + fallback ratchet support.
+
+## [0.1.3] - 2026-05-15
+
+### Added
+
+- Offline_snapshot helpers + sync-usage + variable count.
+
+## [0.1.2] - 2026-05-15
+
+### Added
+
+- UsagePayload metadata fields.
+
+## [0.1.1] - 2026-05-15
+
+### Added
+
+- TrackAnonymousUsage endpoint.
+
+## [0.1.0] - 2026-05-15
+
+### Added
+
+- Initial Go SDK for the Akira Billing API.
+- Add release manifest + issue + complete endpoints.
+- Customer + license + portal + usage + pubkeys endpoints.
+
+### Documentation
+
+- Expand usage, error handling, configuration tables.
+- Vendor protocol spec locally and fix link.
+- Seed CHANGELOG with the 0.1.0 entry.
+
+### Fixed
+
+- Drop stripe_price_id, add is_coming_soon.
+
+
