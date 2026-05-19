@@ -1,4 +1,3 @@
-// Package signature implements the Akira Billing HMAC-SHA256 request signing protocol.
 package signature
 
 import (
@@ -17,7 +16,6 @@ const (
 	HeaderSignature = "X-Akira-Signature"
 )
 
-// Canonical layout: {product}\n{timestamp}\n{nonce}\n{METHOD}\n{path}\n{sha256(body)}
 func Canonical(product string, timestamp int64, nonce, method, path string, body []byte) string {
 	sum := sha256.Sum256(body)
 

@@ -1,4 +1,3 @@
-// Package client provides the HMAC-signed transport for the Akira Billing API.
 package client
 
 import (

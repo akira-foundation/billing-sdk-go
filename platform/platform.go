@@ -1,4 +1,3 @@
-// Package platform provides cross-environment platform detection matching the billing AssetPlatform slug.
 package platform
 
 import (
@@ -31,7 +30,6 @@ func (p Platform) IsMacOS() bool   { return p.OS == OSMacOS }
 func (p Platform) IsLinux() bool   { return p.OS == OSLinux }
 func (p Platform) IsWindows() bool { return p.OS == OSWindows }
 
-// OSFromTarget accepts runtime.GOOS values and Rust std::env::consts::OS values.
 func OSFromTarget(value string) (OS, bool) {
 	switch strings.ToLower(value) {
 	case "darwin", "macos":
@@ -44,7 +42,6 @@ func OSFromTarget(value string) (OS, bool) {
 	return "", false
 }
 
-// ArchFromTarget accepts runtime.GOARCH values and Rust std::env::consts::ARCH values.
 func ArchFromTarget(value string) (Arch, bool) {
 	switch strings.ToLower(value) {
 	case "arm64", "aarch64":
@@ -72,7 +69,6 @@ func DownloadURL(baseURL, product, channel string, platform Platform) string {
 	return base + "/api/v1/downloads/" + product + "/" + channel + "/" + platform.Slug()
 }
 
-// PickDownloadURL falls back to the provided platform when detection fails.
 func PickDownloadURL(baseURL, product, channel string, fallback *Platform) (string, bool) {
 	p, ok := Detect()
 	if !ok {

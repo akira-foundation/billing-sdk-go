@@ -1,4 +1,3 @@
-// Package customer owns the authenticated customer endpoints.
 package customer
 
 import (
@@ -67,7 +66,6 @@ func RequestOTP(ctx context.Context, c *client.Client, payload OtpRequestPayload
 	return c.Do(ctx, "POST", "/api/auth/customer/otp/request", body, nil)
 }
 
-// VerifyOTP stores the bearer on c.
 func VerifyOTP(ctx context.Context, c *client.Client, payload OtpVerifyPayload) (*OtpVerifyResponse, error) {
 	body, err := json.Marshal(payload)
 	if err != nil {

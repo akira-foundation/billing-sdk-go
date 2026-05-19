@@ -1,4 +1,3 @@
-// Package downloads owns plans, trial activation, and download endpoints.
 package downloads
 
 import (
@@ -112,7 +111,6 @@ func LatestRelease(ctx context.Context, c *client.Client, channel string) (*Rele
 	return out, nil
 }
 
-// IssueDownload platform is "os-arch", e.g. "macos-arm64".
 func IssueDownload(ctx context.Context, c *client.Client, channel, platform string) (*IssuedDownload, error) {
 	out := &IssuedDownload{}
 	path := "/api/v1/downloads/" + c.ProductSlug + "/" + channel + "/" + platform
@@ -122,7 +120,6 @@ func IssueDownload(ctx context.Context, c *client.Client, channel, platform stri
 	return out, nil
 }
 
-// CompleteDownload posts to the absolute beaconURL returned by IssueDownload. Unsigned.
 func CompleteDownload(ctx context.Context, c *client.Client, beaconURL string) error {
 	req, err := http.NewRequestWithContext(ctx, "POST", beaconURL, nil)
 	if err != nil {

@@ -1,4 +1,3 @@
-// Package lifecycle classifies a license snapshot's lifecycle state.
 package lifecycle
 
 import (
@@ -18,7 +17,6 @@ const (
 	StateExpired  State = "expired"
 )
 
-// ComputeState consults plan_key suffix `:trial` or features["__trial"] for trial detection.
 func ComputeState(payload *license.SnapshotPayload, graceWindow time.Duration, now time.Time) State {
 	if payload == nil {
 		return StateNone

@@ -1,4 +1,3 @@
-// Package license owns the offline-snapshot helpers and the authenticated license endpoints.
 package license
 
 type LicensingMode string
@@ -17,7 +16,6 @@ const (
 	UsagePeriodYearly  UsagePeriod = "yearly"
 )
 
-// UsageFeatureState.Type switches the union: "bool" or "counter".
 type UsageFeatureState struct {
 	Type            string      `json:"type"`
 	Enabled         bool        `json:"enabled,omitempty"`

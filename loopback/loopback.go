@@ -1,4 +1,3 @@
-// Package loopback drives the desktop loopback PKCE OAuth flow.
 package loopback
 
 import (
@@ -34,7 +33,6 @@ type Outcome struct {
 	Exchange oauth.ExchangeResponse
 }
 
-// Login stores the bearer on c after exchanging the code.
 func Login(ctx context.Context, c *client.Client, opts Options, openBrowser BrowserOpener) (*Outcome, error) {
 	if opts.Provider == "" {
 		return nil, errors.New("billing: provider required")

@@ -1,4 +1,3 @@
-// Package gate is the runtime feature gate.
 package gate
 
 import (
@@ -14,7 +13,6 @@ import (
 
 type LocalConsumptionFunc func(ctx context.Context, feature string) (uint64, error)
 
-// LicenseLoader returns (nil, nil, nil) when no license is present.
 type LicenseLoader func(ctx context.Context) (*license.SignedLicense, *license.SnapshotPayload, error)
 
 type Options struct {

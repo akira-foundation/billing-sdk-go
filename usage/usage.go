@@ -1,4 +1,3 @@
-// Package usage owns the per-request usage endpoint and the offline delta tracker.
 package usage
 
 import (
@@ -44,7 +43,6 @@ func Track(ctx context.Context, c *client.Client, payload Payload) (*Response, e
 	return out, nil
 }
 
-// TrackAnonymous applies the limits defined on the product's anonymous_plan.
 func TrackAnonymous(ctx context.Context, c *client.Client, payload Payload) (*Response, error) {
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -137,7 +135,6 @@ func (t *Tracker) TrackDelta(ctx context.Context, feature string, delta uint64) 
 	return t.opts.Buffer.Add(ctx, feature, delta)
 }
 
-// Flush restores the buffer on sync error so the next tick retries.
 func (t *Tracker) Flush(ctx context.Context) error {
 	deltas, err := t.opts.Buffer.Drain(ctx)
 	if err != nil {

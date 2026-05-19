@@ -56,8 +56,6 @@ func Verify(signed SignedLicense, publicKeyB64 string) (bool, error) {
 	return ed25519.Verify(ed25519.PublicKey(pkBytes), payloadBytes, sigBytes), nil
 }
 
-// ComputeRemaining returns (count, isUnlimited, ok). Missing feature: (0, false, false).
-// Bool enabled: (MaxUint64, true, true). Bool disabled: (0, false, true).
 func ComputeRemaining(payload SnapshotPayload, feature string, consumedLocal uint64) (uint64, bool, bool) {
 	state, exists := payload.Usage[feature]
 	if !exists {
@@ -98,8 +96,6 @@ func IsInGrace(payload SnapshotPayload, graceSeconds int64, now time.Time) bool 
 	return !now.After(cutoff)
 }
 
-// CanUseUpdate uses the max of paid_up_until and fallback_release_date,
-// extended by updates_window_days. Both nil: returns true.
 func CanUseUpdate(payload SnapshotPayload, releaseDate time.Time) bool {
 	var paidUp, fallback time.Time
 	var paidUpOk, fallbackOk bool

@@ -1,4 +1,3 @@
-// Package github owns the GitHub App + installation endpoints.
 package github
 
 import (
@@ -44,7 +43,6 @@ type InstallationTokenResponse struct {
 	AccountType    string `json:"account_type"`
 }
 
-// GetAppInfo is unsigned.
 func GetAppInfo(ctx context.Context, c *client.Client) (*AppInfo, error) {
 	out := &AppInfo{}
 	if err := c.DoPublic(ctx, "GET", "/api/v1/github/app", nil, out); err != nil {

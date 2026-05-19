@@ -1,4 +1,3 @@
-// Package oauth provides PKCE primitives and the OAuth exchange / providers endpoints.
 package oauth
 
 import (
@@ -124,7 +123,6 @@ func ListProviders(ctx context.Context, c *client.Client, product string) (*Prov
 	return out, nil
 }
 
-// Exchange completes the PKCE flow and stores the bearer on c.
 func Exchange(ctx context.Context, c *client.Client, payload ExchangePayload) (*ExchangeResponse, error) {
 	body, err := json.Marshal(payload)
 	if err != nil {
