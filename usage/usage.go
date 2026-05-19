@@ -1,5 +1,4 @@
-// Package usage owns the offline-delta UsageTracker and the per-request usage
-// endpoint helpers (TrackUsage / TrackAnonymousUsage).
+// Package usage owns the per-request usage endpoint and the offline delta tracker.
 package usage
 
 import (
@@ -14,20 +13,18 @@ import (
 	"github.com/akira-io/billing-sdk-go/license"
 )
 
-// Payload mirrors POST /api/me/usage
 type Payload struct {
 	Product    string `json:"product"`
 	Feature    string `json:"feature"`
 	Date       string `json:"date"`
 	DeviceFP   string `json:"device_fp"`
-	Action     string `json:"action"` // "check" | "increment"
+	Action     string `json:"action"`
 	Count      int    `json:"count,omitempty"`
 	Platform   string `json:"platform,omitempty"`
 	DeviceType string `json:"device_type,omitempty"`
 	AppVersion string `json:"app_version,omitempty"`
 }
 
-// Response carries the current count and the plan limit for the feature.
 type Response struct {
 	Count   int     `json:"count"`
 	Limit   *int    `json:"limit"`
@@ -35,8 +32,6 @@ type Response struct {
 	Allowed bool    `json:"allowed"`
 }
 
-// Track hits POST /api/me/usage to either check or increment the per-day
-// counter for (customer, product, feature, device_fp).
 func Track(ctx context.Context, c *client.Client, payload Payload) (*Response, error) {
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -49,9 +44,7 @@ func Track(ctx context.Context, c *client.Client, payload Payload) (*Response, e
 	return out, nil
 }
 
-// TrackAnonymous hits POST /api/v1/usage/anonymous (HMAC only, no bearer).
-// Use when the customer is not yet authenticated; the server applies the
-// limits defined on the product's anonymous_plan.
+// TrackAnonymous applies the limits defined on the product's anonymous_plan.
 func TrackAnonymous(ctx context.Context, c *client.Client, payload Payload) (*Response, error) {
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -64,20 +57,17 @@ func TrackAnonymous(ctx context.Context, c *client.Client, payload Payload) (*Re
 	return out, nil
 }
 
-// Buffer is the local store for pending counter deltas.
 type Buffer interface {
 	Add(ctx context.Context, feature string, delta uint64) error
 	Drain(ctx context.Context) (map[string]uint64, error)
 	Restore(ctx context.Context, deltas map[string]uint64) error
 }
 
-// MemoryBuffer is an in-memory Buffer suitable for tests or stateless apps.
 type MemoryBuffer struct {
 	mu    sync.Mutex
 	state map[string]uint64
 }
 
-// NewMemoryBuffer returns a fresh in-memory buffer.
 func NewMemoryBuffer() *MemoryBuffer {
 	return &MemoryBuffer{state: map[string]uint64{}}
 }
@@ -106,16 +96,12 @@ func (b *MemoryBuffer) Restore(_ context.Context, deltas map[string]uint64) erro
 	return nil
 }
 
-// SyncFunc dispatches deltas to the server. Returns the refreshed license + applied counts.
 type SyncFunc func(ctx context.Context, deltas map[string]uint64, serial uint64) (*license.SyncUsageResponse, error)
 
-// SerialProvider returns the current cached license serial.
 type SerialProvider func(ctx context.Context) (uint64, error)
 
-// RefreshHandler receives the freshly synced license envelope.
 type RefreshHandler func(ctx context.Context, resp *license.SyncUsageResponse) error
 
-// TrackerOptions configures a Tracker.
 type TrackerOptions struct {
 	Buffer        Buffer
 	Sync          SyncFunc
@@ -124,7 +110,6 @@ type TrackerOptions struct {
 	FlushInterval time.Duration
 }
 
-// Tracker buffers deltas and flushes them in the background.
 type Tracker struct {
 	opts    TrackerOptions
 	running atomic.Bool
@@ -132,7 +117,6 @@ type Tracker struct {
 	done    chan struct{}
 }
 
-// NewTracker validates options and returns a ready tracker.
 func NewTracker(opts TrackerOptions) (*Tracker, error) {
 	if opts.Buffer == nil {
 		return nil, fmt.Errorf("billing: tracker requires Buffer")
@@ -146,7 +130,6 @@ func NewTracker(opts TrackerOptions) (*Tracker, error) {
 	return &Tracker{opts: opts}, nil
 }
 
-// TrackDelta adds delta to the buffer for feature.
 func (t *Tracker) TrackDelta(ctx context.Context, feature string, delta uint64) error {
 	if delta == 0 {
 		return nil
@@ -154,8 +137,7 @@ func (t *Tracker) TrackDelta(ctx context.Context, feature string, delta uint64) 
 	return t.opts.Buffer.Add(ctx, feature, delta)
 }
 
-// Flush drains the buffer and pushes a single sync call. On error the deltas
-// are restored so the next flush retries them.
+// Flush restores the buffer on sync error so the next tick retries.
 func (t *Tracker) Flush(ctx context.Context) error {
 	deltas, err := t.opts.Buffer.Drain(ctx)
 	if err != nil {
@@ -189,7 +171,6 @@ func (t *Tracker) Flush(ctx context.Context) error {
 	return nil
 }
 
-// Start launches a background flusher. Calling twice is a no-op.
 func (t *Tracker) Start(ctx context.Context) {
 	if !t.running.CompareAndSwap(false, true) {
 		return
@@ -200,7 +181,6 @@ func (t *Tracker) Start(ctx context.Context) {
 	go t.loop(loopCtx)
 }
 
-// Stop halts the flusher and performs one final flush.
 func (t *Tracker) Stop(ctx context.Context) error {
 	if !t.running.CompareAndSwap(true, false) {
 		return nil

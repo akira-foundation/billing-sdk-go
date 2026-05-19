@@ -1,4 +1,4 @@
-// Package github owns the GitHub App + installation endpoint helpers.
+// Package github owns the GitHub App + installation endpoints.
 package github
 
 import (
@@ -8,19 +8,16 @@ import (
 	"github.com/akira-io/billing-sdk-go/client"
 )
 
-// AppInfo mirrors GET /api/v1/github/app (unsigned).
 type AppInfo struct {
 	Slug       string `json:"slug"`
 	InstallURL string `json:"install_url"`
 }
 
-// UserSummary describes the linked GitHub user.
 type UserSummary struct {
 	ID    uint64 `json:"id"`
 	Login string `json:"login"`
 }
 
-// Installation describes one of the customer's GitHub installations.
 type Installation struct {
 	ID           uint64 `json:"id"`
 	HTMLURL      string `json:"html_url"`
@@ -30,18 +27,15 @@ type Installation struct {
 	TargetType   string `json:"target_type"`
 }
 
-// InstallationsResponse mirrors GET /api/me/github/installations
 type InstallationsResponse struct {
 	User          UserSummary    `json:"user"`
 	Installations []Installation `json:"installations"`
 }
 
-// InstallationTokenPayload mirrors POST /api/me/github/installation-token
 type InstallationTokenPayload struct {
 	InstallationID *uint64 `json:"installation_id,omitempty"`
 }
 
-// InstallationTokenResponse carries the short-lived installation token.
 type InstallationTokenResponse struct {
 	Token          string `json:"token"`
 	ExpiresAt      string `json:"expires_at"`
@@ -50,7 +44,7 @@ type InstallationTokenResponse struct {
 	AccountType    string `json:"account_type"`
 }
 
-// GetAppInfo returns public GitHub App metadata (slug + install URL). Unsigned.
+// GetAppInfo is unsigned.
 func GetAppInfo(ctx context.Context, c *client.Client) (*AppInfo, error) {
 	out := &AppInfo{}
 	if err := c.DoPublic(ctx, "GET", "/api/v1/github/app", nil, out); err != nil {
@@ -59,7 +53,6 @@ func GetAppInfo(ctx context.Context, c *client.Client) (*AppInfo, error) {
 	return out, nil
 }
 
-// Installations returns the authenticated customer's GitHub user info and installations.
 func Installations(ctx context.Context, c *client.Client) (*InstallationsResponse, error) {
 	out := &InstallationsResponse{}
 	if err := c.Do(ctx, "GET", "/api/me/github/installations", nil, out); err != nil {
@@ -68,7 +61,6 @@ func Installations(ctx context.Context, c *client.Client) (*InstallationsRespons
 	return out, nil
 }
 
-// IssueInstallationToken mints a short-lived install token for the given installation.
 func IssueInstallationToken(ctx context.Context, c *client.Client, payload InstallationTokenPayload) (*InstallationTokenResponse, error) {
 	body, err := json.Marshal(payload)
 	if err != nil {

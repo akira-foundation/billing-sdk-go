@@ -9,13 +9,11 @@ import (
 	"time"
 )
 
-// DecodedLicense holds the raw signed envelope plus the parsed payload.
 type DecodedLicense struct {
 	Raw     SignedLicense
 	Payload SnapshotPayload
 }
 
-// Decode base64-decodes the embedded payload and unmarshals it.
 func Decode(signed SignedLicense) (*DecodedLicense, error) {
 	payloadBytes, err := base64.StdEncoding.DecodeString(signed.Payload)
 	if err != nil {
@@ -30,8 +28,6 @@ func Decode(signed SignedLicense) (*DecodedLicense, error) {
 	return &DecodedLicense{Raw: signed, Payload: payload}, nil
 }
 
-// Verify checks the Ed25519 signature against publicKeyB64. Returns false for
-// non-ed25519 algorithms or when the signature does not match.
 func Verify(signed SignedLicense, publicKeyB64 string) (bool, error) {
 	if signed.Algorithm != "ed25519" {
 		return false, nil
@@ -60,10 +56,8 @@ func Verify(signed SignedLicense, publicKeyB64 string) (bool, error) {
 	return ed25519.Verify(ed25519.PublicKey(pkBytes), payloadBytes, sigBytes), nil
 }
 
-// ComputeRemaining returns the remaining count for a feature given current
-// local consumption. Returns (count, isUnlimited, ok). When the feature is
-// missing returns (0, false, false). For enabled bool features returns
-// (math.MaxUint64, true, true). For disabled bool returns (0, false, true).
+// ComputeRemaining returns (count, isUnlimited, ok). Missing feature: (0, false, false).
+// Bool enabled: (MaxUint64, true, true). Bool disabled: (0, false, true).
 func ComputeRemaining(payload SnapshotPayload, feature string, consumedLocal uint64) (uint64, bool, bool) {
 	state, exists := payload.Usage[feature]
 	if !exists {
@@ -87,7 +81,6 @@ func ComputeRemaining(payload SnapshotPayload, feature string, consumedLocal uin
 	}
 }
 
-// IsExpired reports whether the snapshot is past valid_until.
 func IsExpired(payload SnapshotPayload, now time.Time) bool {
 	expiry, err := time.Parse(time.RFC3339, payload.ValidUntil)
 	if err != nil {
@@ -96,7 +89,6 @@ func IsExpired(payload SnapshotPayload, now time.Time) bool {
 	return now.After(expiry)
 }
 
-// IsInGrace reports whether now is within graceSeconds of valid_until.
 func IsInGrace(payload SnapshotPayload, graceSeconds int64, now time.Time) bool {
 	expiry, err := time.Parse(time.RFC3339, payload.ValidUntil)
 	if err != nil {
@@ -106,9 +98,8 @@ func IsInGrace(payload SnapshotPayload, graceSeconds int64, now time.Time) bool 
 	return !now.After(cutoff)
 }
 
-// CanUseUpdate reports whether a release dated releaseDate can be installed
-// under this license. Uses the max of paid_up_until and fallback_release_date,
-// extended by updates_window_days. When both are missing returns true.
+// CanUseUpdate uses the max of paid_up_until and fallback_release_date,
+// extended by updates_window_days. Both nil: returns true.
 func CanUseUpdate(payload SnapshotPayload, releaseDate time.Time) bool {
 	var paidUp, fallback time.Time
 	var paidUpOk, fallbackOk bool
@@ -144,8 +135,6 @@ func CanUseUpdate(payload SnapshotPayload, releaseDate time.Time) bool {
 	return !releaseDate.After(cutoff)
 }
 
-// PeriodResetAt returns the period_end timestamp for a counter feature, or
-// the zero time when the feature is not a counter.
 func PeriodResetAt(payload SnapshotPayload, feature string) time.Time {
 	state, exists := payload.Usage[feature]
 	if !exists || state.Type != "counter" {

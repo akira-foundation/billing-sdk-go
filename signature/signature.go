@@ -1,6 +1,4 @@
-// Package signature implements the Akira Billing HMAC-SHA256 request signing
-// protocol. The Go, Rust, and TypeScript SDKs share fixture vectors at
-// tests/fixtures/signature-vectors.json.
+// Package signature implements the Akira Billing HMAC-SHA256 request signing protocol.
 package signature
 
 import (
@@ -19,9 +17,7 @@ const (
 	HeaderSignature = "X-Akira-Signature"
 )
 
-// Canonical builds the canonical string that gets HMAC'd. Layout:
-//
-//	{product}\n{timestamp}\n{nonce}\n{METHOD}\n{path}\n{sha256(body)}
+// Canonical layout: {product}\n{timestamp}\n{nonce}\n{METHOD}\n{path}\n{sha256(body)}
 func Canonical(product string, timestamp int64, nonce, method, path string, body []byte) string {
 	sum := sha256.Sum256(body)
 
@@ -35,7 +31,6 @@ func Canonical(product string, timestamp int64, nonce, method, path string, body
 	}, "\n")
 }
 
-// Sign returns the lowercase-hex HMAC-SHA256 of the canonical string under the given secret.
 func Sign(secret, canonical string) string {
 	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write([]byte(canonical))
@@ -43,7 +38,6 @@ func Sign(secret, canonical string) string {
 	return hex.EncodeToString(mac.Sum(nil))
 }
 
-// NewNonce returns a 16-byte random nonce encoded as lowercase hex (32 chars).
 func NewNonce() (string, error) {
 	buf := make([]byte, 16)
 	if _, err := rand.Read(buf); err != nil {

@@ -1,9 +1,4 @@
 // Package client provides the HMAC-signed transport for the Akira Billing API.
-//
-// The Client type owns the *http.Client, the product credentials, and the
-// optional per-customer bearer. Endpoint helpers live in their own
-// sub-packages (license, oauth, usage, ...) and take *client.Client as their
-// first non-context argument.
 package client
 
 import (
@@ -20,7 +15,6 @@ import (
 	"github.com/akira-io/billing-sdk-go/signature"
 )
 
-// Client talks to the Akira Billing API on behalf of one product/customer pair.
 type Client struct {
 	BaseURL       string
 	ProductSlug   string
@@ -29,7 +23,6 @@ type Client struct {
 	HTTP          *http.Client
 }
 
-// New wires a default Client with a 10s timeout.
 func New(baseURL, productSlug, productSecret string) *Client {
 	return &Client{
 		BaseURL:       baseURL,
@@ -39,12 +32,10 @@ func New(baseURL, productSlug, productSecret string) *Client {
 	}
 }
 
-// SetCustomerToken stores the Bearer token the SDK should send on signed requests.
 func (c *Client) SetCustomerToken(token string) {
 	c.CustomerToken = token
 }
 
-// APIError represents a non-2xx response with the server-provided error code.
 type APIError struct {
 	Status  int    `json:"-"`
 	Code    string `json:"error"`
@@ -62,8 +53,6 @@ func (e *APIError) Error() string {
 	return fmt.Sprintf("billing api %d: %s", e.Status, e.reason())
 }
 
-// Do builds, signs and dispatches a request, then decodes JSON into out (if non-nil).
-// Pass nil for body on GET requests.
 func (c *Client) Do(ctx context.Context, method, path string, body []byte, out any) error {
 	endpoint, err := url.JoinPath(c.BaseURL, path)
 	if err != nil {
@@ -117,8 +106,6 @@ func (c *Client) Do(ctx context.Context, method, path string, body []byte, out a
 	return json.NewDecoder(resp.Body).Decode(out)
 }
 
-// DoPublic dispatches a request without HMAC headers and without the customer
-// bearer. Use only for endpoints documented as unauthenticated.
 func (c *Client) DoPublic(ctx context.Context, method, path string, body []byte, out any) error {
 	endpoint, err := url.JoinPath(c.BaseURL, path)
 	if err != nil {

@@ -1,6 +1,4 @@
-// Package gate is the runtime feature gate. It composes the license decoder,
-// lifecycle state, and a caller-supplied local consumption hook into a single
-// Check / Require API.
+// Package gate is the runtime feature gate.
 package gate
 
 import (
@@ -14,15 +12,11 @@ import (
 	"github.com/akira-io/billing-sdk-go/lifecycle"
 )
 
-// LocalConsumptionFunc returns the locally-buffered consumption for a counter
-// feature that has not yet been flushed to the server.
 type LocalConsumptionFunc func(ctx context.Context, feature string) (uint64, error)
 
-// LicenseLoader fetches and verifies the cached license. Implementations should
-// return (nil, nil, nil) when no license is present.
+// LicenseLoader returns (nil, nil, nil) when no license is present.
 type LicenseLoader func(ctx context.Context) (*license.SignedLicense, *license.SnapshotPayload, error)
 
-// Options configures a Gate.
 type Options struct {
 	Loader           LicenseLoader
 	LocalConsumption LocalConsumptionFunc
@@ -30,7 +24,6 @@ type Options struct {
 	Now              func() time.Time
 }
 
-// FeatureAccess describes the outcome of a single feature check.
 type FeatureAccess struct {
 	Feature    string
 	Allowed    bool
@@ -42,7 +35,6 @@ type FeatureAccess struct {
 	State      lifecycle.State
 }
 
-// Denied is returned by Require when access is not granted.
 type Denied struct {
 	Access FeatureAccess
 }
@@ -51,7 +43,6 @@ func (e *Denied) Error() string {
 	return fmt.Sprintf("billing: feature %q denied (%s)", e.Access.Feature, e.Access.Reason)
 }
 
-// IsDenied reports whether err is a *Denied and exposes its access info.
 func IsDenied(err error) (*Denied, bool) {
 	var d *Denied
 	if errors.As(err, &d) {
@@ -60,13 +51,11 @@ func IsDenied(err error) (*Denied, bool) {
 	return nil, false
 }
 
-// Gate combines verify + state + ComputeRemaining in one call.
 type Gate struct {
 	opts Options
 	mu   sync.Mutex
 }
 
-// New returns a Gate with sensible defaults for nil callbacks.
 func New(opts Options) *Gate {
 	if opts.Now == nil {
 		opts.Now = time.Now
@@ -77,7 +66,6 @@ func New(opts Options) *Gate {
 	return &Gate{opts: opts}
 }
 
-// Check evaluates a feature without raising an error on denial.
 func (g *Gate) Check(ctx context.Context, feature string) (FeatureAccess, error) {
 	access := FeatureAccess{Feature: feature, State: lifecycle.StateNone}
 
@@ -146,7 +134,6 @@ func (g *Gate) Check(ctx context.Context, feature string) (FeatureAccess, error)
 	return access, nil
 }
 
-// Require denies access with a typed *Denied error.
 func (g *Gate) Require(ctx context.Context, feature string) (FeatureAccess, error) {
 	access, err := g.Check(ctx, feature)
 	if err != nil {

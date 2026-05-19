@@ -7,7 +7,6 @@ import (
 	"github.com/akira-io/billing-sdk-go/license"
 )
 
-// State enumerates the lifecycle states a snapshot can be in.
 type State string
 
 const (
@@ -19,10 +18,7 @@ const (
 	StateExpired  State = "expired"
 )
 
-// ComputeState derives the lifecycle state from a snapshot at the given moment.
-// graceWindow is the offline grace period applied past valid_until. The trial
-// flag is consulted from the snapshot's plan_key suffix `:trial` or features
-// map entry `__trial`. Callers wanting custom rules should compose their own.
+// ComputeState consults plan_key suffix `:trial` or features["__trial"] for trial detection.
 func ComputeState(payload *license.SnapshotPayload, graceWindow time.Duration, now time.Time) State {
 	if payload == nil {
 		return StateNone
@@ -49,8 +45,6 @@ func ComputeState(payload *license.SnapshotPayload, graceWindow time.Duration, n
 	return StateExpired
 }
 
-// TrialDaysLeft returns the integer days remaining in a trialing license, or 0
-// when not trialing / past expiry.
 func TrialDaysLeft(payload *license.SnapshotPayload, now time.Time) int {
 	if payload == nil || !isTrialPayload(payload) {
 		return 0

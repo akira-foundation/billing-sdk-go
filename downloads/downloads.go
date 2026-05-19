@@ -1,5 +1,4 @@
-// Package downloads owns the plans, trial activation, and download endpoint
-// helpers.
+// Package downloads owns plans, trial activation, and download endpoints.
 package downloads
 
 import (
@@ -13,7 +12,6 @@ import (
 	"github.com/akira-io/billing-sdk-go/client"
 )
 
-// PlansResponse mirrors GET /api/v1/products/{key}/plans
 type PlansResponse struct {
 	Product     string  `json:"product"`
 	Name        string  `json:"name"`
@@ -24,7 +22,6 @@ type PlansResponse struct {
 	Plans       []Plan  `json:"plans"`
 }
 
-// Plan describes one plan available on the product.
 type Plan struct {
 	ID              string        `json:"id"`
 	Key             string        `json:"key"`
@@ -38,14 +35,12 @@ type Plan struct {
 	Features        []PlanFeature `json:"features"`
 }
 
-// PlanFeature describes a feature attached to a plan.
 type PlanFeature struct {
 	Key         string  `json:"key"`
 	Name        string  `json:"name"`
 	Description *string `json:"description"`
 }
 
-// IssuedTrial mirrors POST /api/v1/me/products/{key}/trial
 type IssuedTrial struct {
 	Product         string    `json:"product"`
 	Plan            *string   `json:"plan"`
@@ -55,7 +50,6 @@ type IssuedTrial struct {
 	TrialPeriodDays *int      `json:"trial_period_days"`
 }
 
-// ReleaseAsset describes a single downloadable artifact in a release manifest.
 type ReleaseAsset struct {
 	OS        string `json:"os"`
 	Arch      string `json:"arch"`
@@ -65,7 +59,6 @@ type ReleaseAsset struct {
 	SHA256    string `json:"sha256"`
 }
 
-// ReleaseManifest mirrors GET /api/v1/downloads/{product}/releases/{channel}/latest
 type ReleaseManifest struct {
 	Version    string         `json:"version"`
 	Channel    string         `json:"channel"`
@@ -74,7 +67,6 @@ type ReleaseManifest struct {
 	Assets     []ReleaseAsset `json:"assets"`
 }
 
-// IssuedDownload mirrors GET /api/v1/downloads/{product}/{channel}/{platform} (Accept: application/json)
 type IssuedDownload struct {
 	EventID   string    `json:"eventId"`
 	Product   string    `json:"product"`
@@ -90,7 +82,6 @@ type IssuedDownload struct {
 	BeaconURL string    `json:"beaconUrl"`
 }
 
-// Plans fetches the public plans payload for the configured product.
 func Plans(ctx context.Context, c *client.Client) (*PlansResponse, error) {
 	out := &PlansResponse{}
 	if err := c.Do(ctx, "GET", "/api/v1/products/"+c.ProductSlug+"/plans", nil, out); err != nil {
@@ -99,7 +90,6 @@ func Plans(ctx context.Context, c *client.Client) (*PlansResponse, error) {
 	return out, nil
 }
 
-// StartTrial activates the optional trial plan for the configured product.
 func StartTrial(ctx context.Context, c *client.Client, planKey string) (*IssuedTrial, error) {
 	body := []byte(`{}`)
 	if planKey != "" {
@@ -113,8 +103,6 @@ func StartTrial(ctx context.Context, c *client.Client, planKey string) (*IssuedT
 	return out, nil
 }
 
-// LatestRelease fetches the current release manifest for a channel.
-// Channel is one of "stable", "beta", "nightly".
 func LatestRelease(ctx context.Context, c *client.Client, channel string) (*ReleaseManifest, error) {
 	out := &ReleaseManifest{}
 	path := "/api/v1/downloads/" + c.ProductSlug + "/releases/" + channel + "/latest"
@@ -124,8 +112,7 @@ func LatestRelease(ctx context.Context, c *client.Client, channel string) (*Rele
 	return out, nil
 }
 
-// IssueDownload requests a signed URL for the matching asset and records a
-// DownloadEvent on the backend. Platform is "os-arch", e.g. "macos-arm64".
+// IssueDownload platform is "os-arch", e.g. "macos-arm64".
 func IssueDownload(ctx context.Context, c *client.Client, channel, platform string) (*IssuedDownload, error) {
 	out := &IssuedDownload{}
 	path := "/api/v1/downloads/" + c.ProductSlug + "/" + channel + "/" + platform
@@ -135,9 +122,7 @@ func IssueDownload(ctx context.Context, c *client.Client, channel, platform stri
 	return out, nil
 }
 
-// CompleteDownload posts the completion beacon for an issued event. The beacon
-// URL is the absolute URL returned in IssuedDownload.BeaconURL, which already
-// carries the signature query string. Unsigned.
+// CompleteDownload posts to the absolute beaconURL returned by IssueDownload. Unsigned.
 func CompleteDownload(ctx context.Context, c *client.Client, beaconURL string) error {
 	req, err := http.NewRequestWithContext(ctx, "POST", beaconURL, nil)
 	if err != nil {
