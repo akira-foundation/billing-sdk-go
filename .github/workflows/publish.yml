@@ -31,7 +31,7 @@ jobs:
         run: |
           DATE=$(date -u +%Y-%m-%d)
           VERSION=${GITHUB_REF_NAME#v}
-          sed -i "s/^## \[Unreleased\]/## [$VERSION] - $DATE/" CHANGELOG.md
+          sed -i -E "s/^## \[?[Uu]nreleased\]?/## [$VERSION] - $DATE/" CHANGELOG.md
 
       - name: Commit changelog
         run: |
@@ -53,8 +53,11 @@ jobs:
           } >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
-        uses: ncipollo/release-action@v1
-        with:
-          tag: ${{ github.ref_name }}
-          body: ${{ steps.notes.outputs.body }}
-          makeLatest: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete "${{ github.ref_name }}" --yes 2>/dev/null || true
+          gh release create "${{ github.ref_name }}" \
+            --title "${{ github.ref_name }}" \
+            --notes "${{ steps.notes.outputs.body }}" \
+            --latest
