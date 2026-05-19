@@ -1,4 +1,4 @@
-package billing
+package oauth
 
 import (
 	"crypto/sha256"
@@ -24,12 +24,12 @@ func TestGeneratePkceChallengeMatchesVerifier(t *testing.T) {
 	}
 }
 
-func TestGenerateOauthStateIsRandomAndUrlSafe(t *testing.T) {
-	a, err := GenerateOauthState()
+func TestGenerateStateIsRandomAndUrlSafe(t *testing.T) {
+	a, err := GenerateState()
 	if err != nil {
 		t.Fatalf("a: %v", err)
 	}
-	b, _ := GenerateOauthState()
+	b, _ := GenerateState()
 	if a == b {
 		t.Fatalf("expected different values")
 	}
@@ -40,8 +40,8 @@ func TestGenerateOauthStateIsRandomAndUrlSafe(t *testing.T) {
 	}
 }
 
-func TestBuildOauthInitURL(t *testing.T) {
-	raw := BuildOauthInitURL(BuildOauthInitUrlOptions{
+func TestBuildInitURL(t *testing.T) {
+	raw := BuildInitURL(InitURLOptions{
 		BaseURL:       "https://billing.akira.io/",
 		Provider:      "google",
 		Product:       "maintainer",
@@ -73,8 +73,8 @@ func TestBuildOauthInitURL(t *testing.T) {
 	}
 }
 
-func TestBuildOauthInitURLOmitsState(t *testing.T) {
-	raw := BuildOauthInitURL(BuildOauthInitUrlOptions{
+func TestBuildInitURLOmitsState(t *testing.T) {
+	raw := BuildInitURL(InitURLOptions{
 		BaseURL:       "https://billing.akira.io",
 		Provider:      "github",
 		Product:       "m",

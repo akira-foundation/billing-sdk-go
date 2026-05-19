@@ -1,51 +1,57 @@
-package billing
+// Package lifecycle classifies a license snapshot's lifecycle state.
+package lifecycle
 
-import "time"
+import (
+	"time"
 
-type LicenseState string
+	"github.com/akira-io/billing-sdk-go/license"
+)
+
+// State enumerates the lifecycle states a snapshot can be in.
+type State string
 
 const (
-	LicenseStateNone     LicenseState = "none"
-	LicenseStateInvalid  LicenseState = "invalid"
-	LicenseStateActive   LicenseState = "active"
-	LicenseStateTrialing LicenseState = "trialing"
-	LicenseStateGrace    LicenseState = "grace"
-	LicenseStateExpired  LicenseState = "expired"
+	StateNone     State = "none"
+	StateInvalid  State = "invalid"
+	StateActive   State = "active"
+	StateTrialing State = "trialing"
+	StateGrace    State = "grace"
+	StateExpired  State = "expired"
 )
 
 // ComputeState derives the lifecycle state from a snapshot at the given moment.
 // graceWindow is the offline grace period applied past valid_until. The trial
 // flag is consulted from the snapshot's plan_key suffix `:trial` or features
 // map entry `__trial`. Callers wanting custom rules should compose their own.
-func ComputeState(payload *LicenseSnapshotPayload, graceWindow time.Duration, now time.Time) LicenseState {
+func ComputeState(payload *license.SnapshotPayload, graceWindow time.Duration, now time.Time) State {
 	if payload == nil {
-		return LicenseStateNone
+		return StateNone
 	}
 	if payload.ValidUntil == "" {
-		return LicenseStateInvalid
+		return StateInvalid
 	}
 	expiry, err := time.Parse(time.RFC3339, payload.ValidUntil)
 	if err != nil {
-		return LicenseStateInvalid
+		return StateInvalid
 	}
 
 	if now.Before(expiry) || now.Equal(expiry) {
 		if isTrialPayload(payload) {
-			return LicenseStateTrialing
+			return StateTrialing
 		}
-		return LicenseStateActive
+		return StateActive
 	}
 
 	cutoff := expiry.Add(graceWindow)
 	if !now.After(cutoff) {
-		return LicenseStateGrace
+		return StateGrace
 	}
-	return LicenseStateExpired
+	return StateExpired
 }
 
 // TrialDaysLeft returns the integer days remaining in a trialing license, or 0
 // when not trialing / past expiry.
-func TrialDaysLeft(payload *LicenseSnapshotPayload, now time.Time) int {
+func TrialDaysLeft(payload *license.SnapshotPayload, now time.Time) int {
 	if payload == nil || !isTrialPayload(payload) {
 		return 0
 	}
@@ -61,7 +67,7 @@ func TrialDaysLeft(payload *LicenseSnapshotPayload, now time.Time) int {
 	return days
 }
 
-func isTrialPayload(payload *LicenseSnapshotPayload) bool {
+func isTrialPayload(payload *license.SnapshotPayload) bool {
 	if payload == nil {
 		return false
 	}

@@ -1,4 +1,7 @@
-package billing
+// Package gate is the runtime feature gate. It composes the license decoder,
+// lifecycle state, and a caller-supplied local consumption hook into a single
+// Check / Require API.
+package gate
 
 import (
 	"context"
@@ -6,6 +9,9 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/akira-io/billing-sdk-go/license"
+	"github.com/akira-io/billing-sdk-go/lifecycle"
 )
 
 // LocalConsumptionFunc returns the locally-buffered consumption for a counter
@@ -14,10 +20,10 @@ type LocalConsumptionFunc func(ctx context.Context, feature string) (uint64, err
 
 // LicenseLoader fetches and verifies the cached license. Implementations should
 // return (nil, nil, nil) when no license is present.
-type LicenseLoader func(ctx context.Context) (*SignedLicense, *LicenseSnapshotPayload, error)
+type LicenseLoader func(ctx context.Context) (*license.SignedLicense, *license.SnapshotPayload, error)
 
-// GateOptions configures a Gate.
-type GateOptions struct {
+// Options configures a Gate.
+type Options struct {
 	Loader           LicenseLoader
 	LocalConsumption LocalConsumptionFunc
 	GraceWindow      time.Duration
@@ -33,21 +39,21 @@ type FeatureAccess struct {
 	Remaining  uint64
 	Reason     string
 	Plan       string
-	State      LicenseState
+	State      lifecycle.State
 }
 
-// GateDenied is returned by Require when access is not granted.
-type GateDenied struct {
+// Denied is returned by Require when access is not granted.
+type Denied struct {
 	Access FeatureAccess
 }
 
-func (e *GateDenied) Error() string {
+func (e *Denied) Error() string {
 	return fmt.Sprintf("billing: feature %q denied (%s)", e.Access.Feature, e.Access.Reason)
 }
 
-// IsGateDenied reports whether err is a GateDenied and exposes its access info.
-func IsGateDenied(err error) (*GateDenied, bool) {
-	var d *GateDenied
+// IsDenied reports whether err is a *Denied and exposes its access info.
+func IsDenied(err error) (*Denied, bool) {
+	var d *Denied
 	if errors.As(err, &d) {
 		return d, true
 	}
@@ -56,12 +62,12 @@ func IsGateDenied(err error) (*GateDenied, bool) {
 
 // Gate combines verify + state + ComputeRemaining in one call.
 type Gate struct {
-	opts GateOptions
+	opts Options
 	mu   sync.Mutex
 }
 
-// NewGate returns a Gate with sensible defaults for nil callbacks.
-func NewGate(opts GateOptions) *Gate {
+// New returns a Gate with sensible defaults for nil callbacks.
+func New(opts Options) *Gate {
 	if opts.Now == nil {
 		opts.Now = time.Now
 	}
@@ -73,7 +79,7 @@ func NewGate(opts GateOptions) *Gate {
 
 // Check evaluates a feature without raising an error on denial.
 func (g *Gate) Check(ctx context.Context, feature string) (FeatureAccess, error) {
-	access := FeatureAccess{Feature: feature, State: LicenseStateNone}
+	access := FeatureAccess{Feature: feature, State: lifecycle.StateNone}
 
 	if g.opts.Loader == nil {
 		access.Reason = "no_loader"
@@ -95,10 +101,10 @@ func (g *Gate) Check(ctx context.Context, feature string) (FeatureAccess, error)
 
 	access.Plan = payload.PlanKey
 	now := g.opts.Now().UTC()
-	access.State = ComputeState(payload, g.opts.GraceWindow, now)
+	access.State = lifecycle.ComputeState(payload, g.opts.GraceWindow, now)
 
 	switch access.State {
-	case LicenseStateExpired, LicenseStateInvalid:
+	case lifecycle.StateExpired, lifecycle.StateInvalid:
 		access.Reason = "license_" + string(access.State)
 		return access, nil
 	}
@@ -117,7 +123,7 @@ func (g *Gate) Check(ctx context.Context, feature string) (FeatureAccess, error)
 		return access, err
 	}
 
-	remaining, unlimited, known := ComputeRemaining(*payload, feature, consumed)
+	remaining, unlimited, known := license.ComputeRemaining(*payload, feature, consumed)
 	if !known {
 		if access.HasFeature {
 			access.Allowed = true
@@ -140,14 +146,14 @@ func (g *Gate) Check(ctx context.Context, feature string) (FeatureAccess, error)
 	return access, nil
 }
 
-// Require denies access with a typed GateDenied error.
+// Require denies access with a typed *Denied error.
 func (g *Gate) Require(ctx context.Context, feature string) (FeatureAccess, error) {
 	access, err := g.Check(ctx, feature)
 	if err != nil {
 		return access, err
 	}
 	if !access.Allowed {
-		return access, &GateDenied{Access: access}
+		return access, &Denied{Access: access}
 	}
 	return access, nil
 }

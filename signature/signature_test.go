@@ -1,4 +1,4 @@
-package billing
+package signature
 
 import (
 	"encoding/json"
@@ -23,7 +23,7 @@ type vector struct {
 func loadVectors(t *testing.T) []vector {
 	t.Helper()
 
-	path := filepath.Join("tests", "fixtures", "signature-vectors.json")
+	path := filepath.Join("..", "tests", "fixtures", "signature-vectors.json")
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read fixtures: %v", err)

@@ -1,4 +1,10 @@
-package billing
+// Package client provides the HMAC-signed transport for the Akira Billing API.
+//
+// The Client type owns the *http.Client, the product credentials, and the
+// optional per-customer bearer. Endpoint helpers live in their own
+// sub-packages (license, oauth, usage, ...) and take *client.Client as their
+// first non-context argument.
+package client
 
 import (
 	"bytes"
@@ -10,6 +16,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/akira-io/billing-sdk-go/signature"
 )
 
 // Client talks to the Akira Billing API on behalf of one product/customer pair.
@@ -21,8 +29,8 @@ type Client struct {
 	HTTP          *http.Client
 }
 
-// NewClient wires a default Client with a 10s timeout.
-func NewClient(baseURL, productSlug, productSecret string) *Client {
+// New wires a default Client with a 10s timeout.
+func New(baseURL, productSlug, productSecret string) *Client {
 	return &Client{
 		BaseURL:       baseURL,
 		ProductSlug:   productSlug,
@@ -55,7 +63,7 @@ func (e *APIError) Error() string {
 }
 
 // Do builds, signs and dispatches a request, then decodes JSON into out (if non-nil).
-// Pass an empty body slice for GET requests.
+// Pass nil for body on GET requests.
 func (c *Client) Do(ctx context.Context, method, path string, body []byte, out any) error {
 	endpoint, err := url.JoinPath(c.BaseURL, path)
 	if err != nil {
@@ -67,21 +75,21 @@ func (c *Client) Do(ctx context.Context, method, path string, body []byte, out a
 		return fmt.Errorf("billing: build request: %w", err)
 	}
 
-	nonce, err := NewNonce()
+	nonce, err := signature.NewNonce()
 	if err != nil {
 		return err
 	}
 	ts := time.Now().Unix()
-	canonical := Canonical(c.ProductSlug, ts, nonce, method, "/"+strings.TrimLeft(path, "/"), body)
+	canonical := signature.Canonical(c.ProductSlug, ts, nonce, method, "/"+strings.TrimLeft(path, "/"), body)
 
 	req.Header.Set("Accept", "application/json")
 	if len(body) > 0 {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	req.Header.Set(HeaderProduct, c.ProductSlug)
-	req.Header.Set(HeaderTimestamp, fmt.Sprintf("%d", ts))
-	req.Header.Set(HeaderNonce, nonce)
-	req.Header.Set(HeaderSignature, Sign(c.ProductSecret, canonical))
+	req.Header.Set(signature.HeaderProduct, c.ProductSlug)
+	req.Header.Set(signature.HeaderTimestamp, fmt.Sprintf("%d", ts))
+	req.Header.Set(signature.HeaderNonce, nonce)
+	req.Header.Set(signature.HeaderSignature, signature.Sign(c.ProductSecret, canonical))
 	if c.CustomerToken != "" {
 		req.Header.Set("Authorization", "Bearer "+c.CustomerToken)
 	}

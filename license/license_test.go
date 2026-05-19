@@ -1,4 +1,4 @@
-package billing
+package license
 
 import (
 	"crypto/ed25519"
@@ -9,10 +9,10 @@ import (
 	"time"
 )
 
-func basePayload() LicenseSnapshotPayload {
+func basePayload() SnapshotPayload {
 	paidUp := "2027-05-15T00:00:00Z"
 	fallback := "2027-05-15T00:00:00Z"
-	return LicenseSnapshotPayload{
+	return SnapshotPayload{
 		V:             2,
 		KeyID:         "k1",
 		CustomerID:    "cust-1",
@@ -39,7 +39,7 @@ func basePayload() LicenseSnapshotPayload {
 	}
 }
 
-func signPayload(t *testing.T, payload LicenseSnapshotPayload, priv ed25519.PrivateKey) SignedLicense {
+func signPayload(t *testing.T, payload SnapshotPayload, priv ed25519.PrivateKey) SignedLicense {
 	t.Helper()
 	bytes, err := json.Marshal(payload)
 	if err != nil {
@@ -55,11 +55,11 @@ func signPayload(t *testing.T, payload LicenseSnapshotPayload, priv ed25519.Priv
 	}
 }
 
-func TestDecodeLicense(t *testing.T) {
+func TestDecode(t *testing.T) {
 	pub, priv, _ := ed25519.GenerateKey(nil)
 	_ = pub
 	signed := signPayload(t, basePayload(), priv)
-	decoded, err := DecodeLicense(signed)
+	decoded, err := Decode(signed)
 	if err != nil {
 		t.Fatalf("decode: %v", err)
 	}
@@ -71,11 +71,11 @@ func TestDecodeLicense(t *testing.T) {
 	}
 }
 
-func TestVerifyLicenseRoundtrip(t *testing.T) {
+func TestVerifyRoundtrip(t *testing.T) {
 	pub, priv, _ := ed25519.GenerateKey(nil)
 	pubB64 := base64.StdEncoding.EncodeToString(pub)
 	signed := signPayload(t, basePayload(), priv)
-	ok, err := VerifyLicense(signed, pubB64)
+	ok, err := Verify(signed, pubB64)
 	if err != nil {
 		t.Fatalf("verify: %v", err)
 	}
@@ -84,11 +84,11 @@ func TestVerifyLicenseRoundtrip(t *testing.T) {
 	}
 }
 
-func TestVerifyLicenseRejectsWrongKey(t *testing.T) {
+func TestVerifyRejectsWrongKey(t *testing.T) {
 	_, priv, _ := ed25519.GenerateKey(nil)
 	wrong, _, _ := ed25519.GenerateKey(nil)
 	signed := signPayload(t, basePayload(), priv)
-	ok, err := VerifyLicense(signed, base64.StdEncoding.EncodeToString(wrong))
+	ok, err := Verify(signed, base64.StdEncoding.EncodeToString(wrong))
 	if err != nil {
 		t.Fatalf("verify: %v", err)
 	}
@@ -97,11 +97,11 @@ func TestVerifyLicenseRejectsWrongKey(t *testing.T) {
 	}
 }
 
-func TestVerifyLicenseRejectsNonEd25519(t *testing.T) {
+func TestVerifyRejectsNonEd25519(t *testing.T) {
 	_, priv, _ := ed25519.GenerateKey(nil)
 	signed := signPayload(t, basePayload(), priv)
 	signed.Algorithm = "rsa"
-	ok, _ := VerifyLicense(signed, "AAAA")
+	ok, _ := Verify(signed, "AAAA")
 	if ok {
 		t.Fatalf("expected reject")
 	}

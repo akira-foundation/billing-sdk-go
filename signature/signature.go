@@ -1,4 +1,7 @@
-package billing
+// Package signature implements the Akira Billing HMAC-SHA256 request signing
+// protocol. The Go, Rust, and TypeScript SDKs share fixture vectors at
+// tests/fixtures/signature-vectors.json.
+package signature
 
 import (
 	"crypto/hmac"

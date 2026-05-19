@@ -1,37 +1,39 @@
-package billing
+package usage
 
 import (
 	"context"
 	"errors"
 	"testing"
 	"time"
+
+	"github.com/akira-io/billing-sdk-go/license"
 )
 
-func TestUsageTrackerFlush(t *testing.T) {
+func TestTrackerFlush(t *testing.T) {
 	buf := NewMemoryBuffer()
 	var syncedDeltas map[string]uint64
 	var syncedSerial uint64
 	refreshed := 0
 
-	tracker, err := NewUsageTracker(TrackerOptions{
+	tracker, err := NewTracker(TrackerOptions{
 		Buffer: buf,
-		Sync: func(_ context.Context, deltas map[string]uint64, serial uint64) (*LicenseSyncUsageResponse, error) {
+		Sync: func(_ context.Context, deltas map[string]uint64, serial uint64) (*license.SyncUsageResponse, error) {
 			syncedDeltas = deltas
 			syncedSerial = serial
-			return &LicenseSyncUsageResponse{Applied: deltas, Serial: serial + 1}, nil
+			return &license.SyncUsageResponse{Applied: deltas, Serial: serial + 1}, nil
 		},
 		Serial:    func(context.Context) (uint64, error) { return 42, nil },
-		OnRefresh: func(context.Context, *LicenseSyncUsageResponse) error { refreshed++; return nil },
+		OnRefresh: func(context.Context, *license.SyncUsageResponse) error { refreshed++; return nil },
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	ctx := context.Background()
-	if err := tracker.Track(ctx, "requests_per_day", 3); err != nil {
+	if err := tracker.TrackDelta(ctx, "requests_per_day", 3); err != nil {
 		t.Fatal(err)
 	}
-	if err := tracker.Track(ctx, "requests_per_day", 2); err != nil {
+	if err := tracker.TrackDelta(ctx, "requests_per_day", 2); err != nil {
 		t.Fatal(err)
 	}
 	if err := tracker.Flush(ctx); err != nil {
@@ -43,19 +45,19 @@ func TestUsageTrackerFlush(t *testing.T) {
 	}
 }
 
-func TestUsageTrackerRollbackOnSyncError(t *testing.T) {
+func TestTrackerRollbackOnSyncError(t *testing.T) {
 	buf := NewMemoryBuffer()
 	syncErr := errors.New("boom")
 
-	tracker, _ := NewUsageTracker(TrackerOptions{
+	tracker, _ := NewTracker(TrackerOptions{
 		Buffer: buf,
-		Sync: func(context.Context, map[string]uint64, uint64) (*LicenseSyncUsageResponse, error) {
+		Sync: func(context.Context, map[string]uint64, uint64) (*license.SyncUsageResponse, error) {
 			return nil, syncErr
 		},
 	})
 
 	ctx := context.Background()
-	_ = tracker.Track(ctx, "f", 4)
+	_ = tracker.TrackDelta(ctx, "f", 4)
 	if err := tracker.Flush(ctx); !errors.Is(err, syncErr) {
 		t.Fatalf("want syncErr got %v", err)
 	}
@@ -66,24 +68,24 @@ func TestUsageTrackerRollbackOnSyncError(t *testing.T) {
 	}
 }
 
-func TestUsageTrackerStartStop(t *testing.T) {
+func TestTrackerStartStop(t *testing.T) {
 	buf := NewMemoryBuffer()
 	done := make(chan struct{}, 4)
 
-	tracker, _ := NewUsageTracker(TrackerOptions{
+	tracker, _ := NewTracker(TrackerOptions{
 		Buffer:        buf,
 		FlushInterval: 10 * time.Millisecond,
-		Sync: func(_ context.Context, deltas map[string]uint64, _ uint64) (*LicenseSyncUsageResponse, error) {
+		Sync: func(_ context.Context, deltas map[string]uint64, _ uint64) (*license.SyncUsageResponse, error) {
 			select {
 			case done <- struct{}{}:
 			default:
 			}
-			return &LicenseSyncUsageResponse{Applied: deltas}, nil
+			return &license.SyncUsageResponse{Applied: deltas}, nil
 		},
 	})
 
 	ctx := context.Background()
-	_ = tracker.Track(ctx, "f", 1)
+	_ = tracker.TrackDelta(ctx, "f", 1)
 	tracker.Start(ctx)
 
 	select {
