@@ -1,0 +1,56 @@
+name: changelog
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refresh-unreleased:
+    if: "!contains(github.event.head_commit.message, 'chore(changelog)')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install git-cliff
+        uses: taiki-e/install-action@v2
+        with:
+          tool: git-cliff
+
+      - name: Regenerate Unreleased section
+        run: |
+          git-cliff --config cliff.toml --unreleased --tag-pattern "v[0-9]*" --strip header --output /tmp/unreleased.md
+          python3 .github/scripts/replace_unreleased.py CHANGELOG.md /tmp/unreleased.md
+
+      - name: Detect changes
+        id: diff
+        run: |
+          if git diff --quiet CHANGELOG.md; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open changelog PR
+        if: steps.diff.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "chore(changelog): refresh unreleased section"
+          title: "chore(changelog): refresh unreleased section"
+          body: |
+            Automated refresh of the `## [Unreleased]` block in `CHANGELOG.md`
+            generated from conventional commits since the last tag.
+
+            Review the bullets, tighten the wording to sound natural, then
+            merge. The publish workflow promotes this block to a dated
+            version when a `vX.Y.Z` tag is pushed.
+          branch: chore/changelog-refresh
+          base: main
+          delete-branch: true
+          labels: changelog,automated
