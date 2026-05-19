@@ -1,8 +1,10 @@
-# Akira Billing SDK · HMAC Request Protocol
+# Protocol — HMAC Request Format
 
 > Version: 1.0.0  ·  Status: stable  ·  Owners: Akira Foundation
 
-This document is the **source of truth** for how Akira desktop apps (Spectra, Debugger, etc.) sign HTTP requests sent to the Billing API. The Go SDK and the Rust crate **must** implement this protocol bit-for-bit and pass the shared test vectors at `tests/fixtures/billing-sdk/signature-vectors.json`.
+Source of truth for how the Akira SDKs sign HTTP requests to the Billing API. The TypeScript, Go, and Rust SDKs implement this protocol bit-for-bit and pass the shared test vectors at `tests/fixtures/signature-vectors.json` in each SDK repository.
+
+See [11-signature](11-signature.md) for the Go-side helpers (`Canonical`, `Sign`, `NewNonce`) that implement this spec.
 
 ## Scope
 
@@ -108,3 +110,7 @@ Expected signature:
 ## Versioning
 
 This spec is versioned via the document header. Backwards-incompatible changes (new required header, different canonical string layout, etc.) bump the major version and require coordinated SDK + backend release.
+
+---
+
+Navigation: [← Desktop](41-desktop.md) · **Protocol** · [Index ↑](00-index.md)
