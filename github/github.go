@@ -43,6 +43,11 @@ type InstallationTokenResponse struct {
 	AccountType    string `json:"account_type"`
 }
 
+type UserTokenResponse struct {
+	Token     string  `json:"token"`
+	ExpiresAt *string `json:"expires_at"`
+}
+
 func GetAppInfo(ctx context.Context, c *client.Client) (*AppInfo, error) {
 	out := &AppInfo{}
 	if err := c.DoPublic(ctx, "GET", "/api/v1/github/app", nil, out); err != nil {
@@ -66,6 +71,14 @@ func IssueInstallationToken(ctx context.Context, c *client.Client, payload Insta
 	}
 	out := &InstallationTokenResponse{}
 	if err := c.Do(ctx, "POST", "/api/me/github/installation-token", body, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func UserToken(ctx context.Context, c *client.Client) (*UserTokenResponse, error) {
+	out := &UserTokenResponse{}
+	if err := c.Do(ctx, "GET", "/api/me/github/user-token", nil, out); err != nil {
 		return nil, err
 	}
 	return out, nil
