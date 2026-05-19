@@ -1,21 +1,66 @@
-package billing
+package usage
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/akira-io/billing-sdk-go/client"
+	"github.com/akira-io/billing-sdk-go/license"
 )
 
-// UsageBuffer is the local store for pending counter deltas.
-type UsageBuffer interface {
+type Payload struct {
+	Product    string `json:"product"`
+	Feature    string `json:"feature"`
+	Date       string `json:"date"`
+	DeviceFP   string `json:"device_fp"`
+	Action     string `json:"action"`
+	Count      int    `json:"count,omitempty"`
+	Platform   string `json:"platform,omitempty"`
+	DeviceType string `json:"device_type,omitempty"`
+	AppVersion string `json:"app_version,omitempty"`
+}
+
+type Response struct {
+	Count   int     `json:"count"`
+	Limit   *int    `json:"limit"`
+	Period  *string `json:"period,omitempty"`
+	Allowed bool    `json:"allowed"`
+}
+
+func Track(ctx context.Context, c *client.Client, payload Payload) (*Response, error) {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	out := &Response{}
+	if err := c.Do(ctx, "POST", "/api/me/usage", body, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func TrackAnonymous(ctx context.Context, c *client.Client, payload Payload) (*Response, error) {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	out := &Response{}
+	if err := c.Do(ctx, "POST", "/api/v1/usage/anonymous", body, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+type Buffer interface {
 	Add(ctx context.Context, feature string, delta uint64) error
 	Drain(ctx context.Context) (map[string]uint64, error)
 	Restore(ctx context.Context, deltas map[string]uint64) error
 }
 
-// MemoryBuffer is an in-memory UsageBuffer suitable for tests or stateless apps.
 type MemoryBuffer struct {
 	mu    sync.Mutex
 	state map[string]uint64
@@ -49,35 +94,28 @@ func (b *MemoryBuffer) Restore(_ context.Context, deltas map[string]uint64) erro
 	return nil
 }
 
-// SyncUsageFunc dispatches deltas to the server. Returns the refreshed license
-// + applied counts so the caller can persist the new snapshot.
-type SyncUsageFunc func(ctx context.Context, deltas map[string]uint64, serial uint64) (*LicenseSyncUsageResponse, error)
+type SyncFunc func(ctx context.Context, deltas map[string]uint64, serial uint64) (*license.SyncUsageResponse, error)
 
-// SerialProvider returns the current cached license serial.
 type SerialProvider func(ctx context.Context) (uint64, error)
 
-// RefreshHandler receives the freshly synced license envelope.
-type RefreshHandler func(ctx context.Context, resp *LicenseSyncUsageResponse) error
+type RefreshHandler func(ctx context.Context, resp *license.SyncUsageResponse) error
 
-// TrackerOptions configures a UsageTracker.
 type TrackerOptions struct {
-	Buffer        UsageBuffer
-	Sync          SyncUsageFunc
+	Buffer        Buffer
+	Sync          SyncFunc
 	Serial        SerialProvider
 	OnRefresh     RefreshHandler
 	FlushInterval time.Duration
 }
 
-// UsageTracker buffers deltas and flushes them in the background.
-type UsageTracker struct {
+type Tracker struct {
 	opts    TrackerOptions
 	running atomic.Bool
 	cancel  context.CancelFunc
 	done    chan struct{}
 }
 
-// NewUsageTracker validates options and returns a ready tracker.
-func NewUsageTracker(opts TrackerOptions) (*UsageTracker, error) {
+func NewTracker(opts TrackerOptions) (*Tracker, error) {
 	if opts.Buffer == nil {
 		return nil, fmt.Errorf("billing: tracker requires Buffer")
 	}
@@ -87,20 +125,17 @@ func NewUsageTracker(opts TrackerOptions) (*UsageTracker, error) {
 	if opts.FlushInterval <= 0 {
 		opts.FlushInterval = 5 * time.Minute
 	}
-	return &UsageTracker{opts: opts}, nil
+	return &Tracker{opts: opts}, nil
 }
 
-// Track adds delta to the buffer for feature.
-func (t *UsageTracker) Track(ctx context.Context, feature string, delta uint64) error {
+func (t *Tracker) TrackDelta(ctx context.Context, feature string, delta uint64) error {
 	if delta == 0 {
 		return nil
 	}
 	return t.opts.Buffer.Add(ctx, feature, delta)
 }
 
-// Flush drains the buffer and pushes a single sync call. On error the deltas
-// are restored so the next flush retries them.
-func (t *UsageTracker) Flush(ctx context.Context) error {
+func (t *Tracker) Flush(ctx context.Context) error {
 	deltas, err := t.opts.Buffer.Drain(ctx)
 	if err != nil {
 		return err
@@ -133,8 +168,7 @@ func (t *UsageTracker) Flush(ctx context.Context) error {
 	return nil
 }
 
-// Start launches a background flusher. Calling twice is a no-op.
-func (t *UsageTracker) Start(ctx context.Context) {
+func (t *Tracker) Start(ctx context.Context) {
 	if !t.running.CompareAndSwap(false, true) {
 		return
 	}
@@ -144,8 +178,7 @@ func (t *UsageTracker) Start(ctx context.Context) {
 	go t.loop(loopCtx)
 }
 
-// Stop halts the flusher and performs one final flush.
-func (t *UsageTracker) Stop(ctx context.Context) error {
+func (t *Tracker) Stop(ctx context.Context) error {
 	if !t.running.CompareAndSwap(true, false) {
 		return nil
 	}
@@ -158,7 +191,7 @@ func (t *UsageTracker) Stop(ctx context.Context) error {
 	return t.Flush(ctx)
 }
 
-func (t *UsageTracker) loop(ctx context.Context) {
+func (t *Tracker) loop(ctx context.Context) {
 	defer close(t.done)
 	ticker := time.NewTicker(t.opts.FlushInterval)
 	defer ticker.Stop()

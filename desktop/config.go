@@ -17,10 +17,10 @@ func CheckoutURL(baseURL, product string) string {
 // debug-style consumers can opt in to runtime overrides by setting Overridable
 // to true.
 type EnvSpec struct {
-	Name           string
-	BakedDefault   string
-	Overridable    bool
-	FallbackValue  string
+	Name          string
+	BakedDefault  string
+	Overridable   bool
+	FallbackValue string
 }
 
 func Resolve(spec EnvSpec) string {

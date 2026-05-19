@@ -1,4 +1,4 @@
-package billing
+package loopback
 
 import (
 	"bufio"
@@ -9,6 +9,9 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/akira-io/billing-sdk-go/client"
+	"github.com/akira-io/billing-sdk-go/oauth"
 )
 
 const (
@@ -20,17 +23,17 @@ const loopbackSuccessHTML = `<!doctype html><meta charset=utf-8><title>Sign in c
 
 type BrowserOpener func(url string) error
 
-type LoopbackOptions struct {
+type Options struct {
 	Provider string
 	Product  string
 	Timeout  time.Duration
 }
 
-type LoopbackOutcome struct {
-	Exchange OauthExchangeResponse
+type Outcome struct {
+	Exchange oauth.ExchangeResponse
 }
 
-func (c *Client) LoopbackLogin(ctx context.Context, opts LoopbackOptions, openBrowser BrowserOpener) (*LoopbackOutcome, error) {
+func Login(ctx context.Context, c *client.Client, opts Options, openBrowser BrowserOpener) (*Outcome, error) {
 	if opts.Provider == "" {
 		return nil, errors.New("billing: provider required")
 	}
@@ -53,16 +56,16 @@ func (c *Client) LoopbackLogin(ctx context.Context, opts LoopbackOptions, openBr
 	}
 	redirectURI := fmt.Sprintf("http://127.0.0.1:%d/cb", addr.Port)
 
-	pkce, err := GeneratePkceChallenge()
+	pkce, err := oauth.GeneratePkceChallenge()
 	if err != nil {
 		return nil, fmt.Errorf("billing: pkce: %w", err)
 	}
-	state, err := GenerateOauthState()
+	state, err := oauth.GenerateState()
 	if err != nil {
 		return nil, fmt.Errorf("billing: state: %w", err)
 	}
 
-	authURL := BuildOauthInitURL(BuildOauthInitUrlOptions{
+	authURL := oauth.BuildInitURL(oauth.InitURLOptions{
 		BaseURL:             c.BaseURL,
 		Provider:            opts.Provider,
 		Product:             opts.Product,
@@ -83,7 +86,7 @@ func (c *Client) LoopbackLogin(ctx context.Context, opts LoopbackOptions, openBr
 	callbackCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	code, returnedState, err := acceptLoopbackCallback(callbackCtx, listener)
+	code, returnedState, err := acceptCallback(callbackCtx, listener)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +94,7 @@ func (c *Client) LoopbackLogin(ctx context.Context, opts LoopbackOptions, openBr
 		return nil, errors.New("billing: oauth state mismatch")
 	}
 
-	exchange, err := c.ExchangeOauthCode(ctx, OauthExchangePayload{
+	exchange, err := oauth.Exchange(ctx, c, oauth.ExchangePayload{
 		Code:         code,
 		CodeVerifier: pkce.Verifier,
 	})
@@ -99,12 +102,10 @@ func (c *Client) LoopbackLogin(ctx context.Context, opts LoopbackOptions, openBr
 		return nil, fmt.Errorf("billing: exchange code: %w", err)
 	}
 
-	c.SetCustomerToken(exchange.AccessToken)
-
-	return &LoopbackOutcome{Exchange: *exchange}, nil
+	return &Outcome{Exchange: *exchange}, nil
 }
 
-func acceptLoopbackCallback(ctx context.Context, listener net.Listener) (string, string, error) {
+func acceptCallback(ctx context.Context, listener net.Listener) (string, string, error) {
 	type result struct {
 		conn net.Conn
 		err  error

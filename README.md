@@ -1,21 +1,36 @@
 # billing-sdk-go
 
-Go client for the [Akira Billing API](https://github.com/akira-foundation/billing).
+Go client for the [Akira Billing API](https://github.com/akira-foundation/billing). Sub-package layout mirroring the [`onyx`](https://github.com/akira-io/onyx) toolkit and the sister Rust crate.
 
-Handles request signing, OTP login, full license lifecycle (check / activate
-/ refresh), entitlements, customer profile, billing portal, per-day usage
-tracking, downloads, trial start, and plans listing. Pass-through for any
-endpoint via `Client.Do()` (signed) or `Client.DoPublic()` (unsigned).
+> Full reference: [`docs/00-index.md`](docs/00-index.md) - one file per package, mirrored across the JS, Rust, and Go SDKs.
 
 > Full reference: [`docs/00-index.md`](docs/00-index.md) - one file per module, with the same numbered structure mirrored in the JS and Rust SDKs.
 
 ## Install
 
 ```bash
-go get github.com/akira-io/billing-sdk-go
+go get github.com/akira-io/billing-sdk-go@latest
 ```
 
-## Quick start
+## Packages
+
+| Path | Topic |
+|------|-------|
+| `client` | `Client`, `APIError`, `Do`/`DoPublic`, `New`, `SetCustomerToken` |
+| `signature` | HMAC primitives + headers (`Canonical`, `Sign`, `NewNonce`) |
+| `customer` | OTP login, `Me`, `Entitlements`, `Features`, `Portal` |
+| `license` | `Decode`, `Verify`, `ComputeRemaining`, `Check`, `Activate`, `Refresh`, `SyncUsage`, `PublicKeys` |
+| `gate` | Runtime feature gate — `Check` / `Require` with offline + grace |
+| `usage` | `Tracker`, `MemoryBuffer`, `Track`, `TrackAnonymous` |
+| `lifecycle` | `ComputeState`, `TrialDaysLeft`, `State` |
+| `oauth` | PKCE primitives, `BuildInitURL`, `Exchange`, `ListProviders` |
+| `github` | `GetAppInfo`, `Installations`, `IssueInstallationToken` |
+| `downloads` | `Plans`, `StartTrial`, `LatestRelease`, `IssueDownload`, `CompleteDownload` |
+| `loopback` | Desktop loopback PKCE OAuth flow |
+| `platform` | `Detect`, `Platform`, `DownloadURL`, `PickDownloadURL` |
+| `desktop` | OS keychain, AES-256-GCM cipher, fingerprint, session, refresh helper |
+
+## Quick start — backend service
 
 ```go
 package main
@@ -23,117 +38,78 @@ package main
 import (
     "context"
     "fmt"
-    "log"
+    "os"
 
-    billing "github.com/akira-io/billing-sdk-go"
+    "github.com/akira-io/billing-sdk-go/client"
+    "github.com/akira-io/billing-sdk-go/customer"
+    "github.com/akira-io/billing-sdk-go/downloads"
 )
 
-// Injected at build time. See "Build-time secret injection" below.
-var productSecret string
-
 func main() {
-    client := billing.NewClient(
+    c := client.New(
         "https://billing.akira.foundation",
         "spectra",
-        productSecret,
+        os.Getenv("AKIRA_BILLING_SECRET"),
     )
-
     ctx := context.Background()
 
-    // 1. Public plans
-    plans, err := client.Plans(ctx)
+    plans, err := downloads.Plans(ctx, c)
     if err != nil {
-        log.Fatal(err)
+        panic(err)
     }
     fmt.Printf("Beta active: %v · %d plans\n", plans.BetaActive, len(plans.Plans))
 
-    // 2. OTP login
-    if err := client.RequestOTP(ctx, billing.OtpRequestPayload{
+    if err := customer.RequestOTP(ctx, c, customer.OtpRequestPayload{
         Email:      "kid@example.com",
         DeviceFP:   "deadbeef",
         Platform:   "macos",
         AppVersion: "0.1.0",
     }); err != nil {
-        log.Fatal(err)
+        panic(err)
     }
 
-    resp, err := client.VerifyOTP(ctx, billing.OtpVerifyPayload{
+    resp, err := customer.VerifyOTP(ctx, c, customer.OtpVerifyPayload{
         Email:    "kid@example.com",
         Code:     "123456",
         DeviceFP: "deadbeef",
     })
     if err != nil {
-        log.Fatal(err)
+        panic(err)
     }
     fmt.Printf("Signed in as %s\n", resp.Customer.Email)
-    // resp.AccessToken is now stored on the client; subsequent calls auto-sign + auth.
-
-    // 3. Start trial
-    trial, err := client.StartTrial(ctx, "") // empty = first eligible plan
-    if err != nil {
-        log.Fatal(err)
-    }
-    fmt.Printf("Trial ends %s\n", trial.EndsAt)
+    // c now carries the bearer; subsequent calls auto-sign + auth.
 }
 ```
 
 ## Configuration
 
 ```go
-client := billing.NewClient(baseURL, productSlug, productSecret)
-client.HTTP.Timeout = 30 * time.Second        // override default 10s
-client.SetCustomerToken("existing-bearer")     // restore from keychain
+c := client.New(baseURL, productSlug, productSecret)
+c.HTTP.Timeout = 30 * time.Second        // override default 10s
+c.SetCustomerToken("existing-bearer")     // restore from keychain
 ```
 
-| Field            | Type           | Notes                                                 |
-| ---------------- | -------------- | ----------------------------------------------------- |
-| `BaseURL`        | string         | Billing endpoint root, no trailing slash              |
-| `ProductSlug`    | string         | Matches `products.key` on the backend                 |
-| `ProductSecret`  | string         | Per-product HMAC secret, set at build time            |
-| `CustomerToken`  | string         | Sanctum bearer, populated after `VerifyOTP`           |
-| `HTTP`           | `*http.Client` | Override timeout / transport / cookies as needed      |
-
-## Endpoints
-
-| Method                                 | Backend route                                  | Auth        |
-| -------------------------------------- | ---------------------------------------------- | ----------- |
-| `Plans(ctx)`                           | `GET  /api/v1/products/{key}/plans`            | HMAC only   |
-| `RequestOTP(ctx, payload)`             | `POST /api/auth/customer/otp/request`          | HMAC only   |
-| `VerifyOTP(ctx, payload)`              | `POST /api/auth/customer/otp/verify`           | HMAC only   |
-| `StartTrial(ctx, planKey)`             | `POST /api/v1/me/products/{key}/trial`         | HMAC + bearer |
-| `CustomerMe(ctx)`                      | `GET  /api/me`                                 | HMAC + bearer |
-| `LicenseCheck(ctx, payload)`           | `POST /api/licenses/check`                     | HMAC + bearer |
-| `LicenseActivate(ctx, payload)`        | `POST /api/licenses/activate`                  | HMAC + bearer |
-| `LicenseRefresh(ctx, payload)`         | `POST /api/licenses/refresh`                   | HMAC + bearer |
-| `LicenseSyncUsage(ctx, payload)`       | `POST /api/licenses/sync-usage` (offline mode) | HMAC + bearer |
-| `Entitlements(ctx)`                    | `GET  /api/me/entitlements`                    | HMAC + bearer |
-| `BillingPortal(ctx, returnURL)`        | `GET  /api/billing/portal`                     | HMAC + bearer |
-| `TrackUsage(ctx, payload)`             | `POST /api/me/usage` (variable `Count`)        | HMAC + bearer |
-| `LatestRelease(ctx, channel)`          | `GET  /api/v1/downloads/{product}/releases/{channel}/latest` | HMAC only |
-| `IssueDownload(ctx, channel, plat)`    | `GET  /api/v1/downloads/{product}/{channel}/{platform}` | HMAC only |
-| `PublicLicenseKeys(ctx)`               | `GET  /api/v1/license-keys/public`             | unsigned    |
-| `Do(ctx, method, path, body, out)`     | any                                            | HMAC (+ bearer if set) |
-| `DoPublic(ctx, method, path, body, out)` | any                                          | unsigned    |
-
-`Do()` and `DoPublic()` are escape hatches for endpoints the SDK hasn't typed
-yet. Build the payload yourself and unmarshal into a struct you provide.
+`client.Client` exposes `BaseURL`, `ProductSlug`, `ProductSecret`, `CustomerToken`, and `HTTP` as plain fields so consumers can rotate any of them in place.
 
 ## Error handling
 
-Non-2xx responses come back as `*billing.APIError`:
+Non-2xx responses come back as `*client.APIError`:
 
 ```go
-plans, err := client.Plans(ctx)
+import (
+    "errors"
+    "github.com/akira-io/billing-sdk-go/client"
+    "github.com/akira-io/billing-sdk-go/downloads"
+)
+
+plans, err := downloads.Plans(ctx, c)
 if err != nil {
-    var apiErr *billing.APIError
+    var apiErr *client.APIError
     if errors.As(err, &apiErr) {
         switch apiErr.Code {
         case "unknown_product":
-            // wrong slug
         case "trial_already_used", "already_has_entitlement":
-            // expected business rule
         case "bad_signature", "missing_signature_headers", "timestamp_skew":
-            // wire-level: rotate secret or sync clock
         }
     }
     return err
@@ -145,35 +121,35 @@ if err != nil {
 Products are tagged server-side with a `licensing_mode`:
 
 | Mode | When to use | Client flow |
-|---|---|---|
+|------|-------------|-------------|
 | `offline_snapshot` | Desktop apps. Long-lived entitlement, infrequent sync. | Refresh signed snapshot, decrement local counter, sync deltas periodically. |
 | `online_realtime` | Pay-per-unit (AI tokens, API calls). | Pre-check budget + post-commit actual `Count`. |
 
-### Offline snapshot helpers (`license.go`)
-
-Exports: `DecodeLicense`, `VerifyLicense` (Ed25519 via stdlib),
-`ComputeRemaining`, `IsExpired`, `IsInGrace`, `CanUseUpdate`,
-`PeriodResetAt`.
+### Offline snapshot helpers
 
 ```go
-resp, err := client.LicenseRefresh(ctx, billing.LicenseRefreshPayload{
+import (
+    "github.com/akira-io/billing-sdk-go/license"
+)
+
+resp, err := license.Refresh(ctx, c, license.RefreshPayload{
     Product:     "maintainer",
     Fingerprint: fp,
 })
 if err != nil { return err }
 
-decoded, err := billing.DecodeLicense(resp.License)
+decoded, err := license.Decode(resp.License)
 if err != nil { return err }
 
-keys, _ := client.PublicLicenseKeys(ctx)
-ok, _ := billing.VerifyLicense(resp.License, keys.Keys[0].PublicKeyBase64)
+keys, _ := license.PublicKeys(ctx, c)
+ok, _ := license.Verify(resp.License, keys.Keys[0].PublicKeyBase64)
 if !ok { return errors.New("forged license") }
 
-remaining, unlim, present := billing.ComputeRemaining(decoded.Payload, "agent_run", localConsumed)
+remaining, unlim, present := license.ComputeRemaining(decoded.Payload, "agent_run", localConsumed)
 if !present { return errors.New("unknown feature") }
 if !unlim && remaining == 0 { return errors.New("limit reached") }
 
-next, err := client.LicenseSyncUsage(ctx, billing.LicenseSyncUsagePayload{
+next, err := license.SyncUsage(ctx, c, license.SyncUsagePayload{
     Product:     "maintainer",
     Fingerprint: fp,
     Serial:      decoded.Payload.Serial,
@@ -181,16 +157,18 @@ next, err := client.LicenseSyncUsage(ctx, billing.LicenseSyncUsagePayload{
 })
 ```
 
-### Online realtime (variable `Count`)
+### Online realtime
 
 ```go
-pre, err := client.TrackUsage(ctx, billing.UsagePayload{
+import "github.com/akira-io/billing-sdk-go/usage"
+
+pre, err := usage.Track(ctx, c, usage.Payload{
     Product:  "aisite",
     Feature:  "llm_tokens",
     Date:     "2026-05-15",
     DeviceFP: fp,
     Action:   "check",
-    Count:    4000, // max_tokens estimate
+    Count:    4000,
 })
 if err != nil { return err }
 if !pre.Allowed { return errors.New("budget exhausted") }
@@ -198,53 +176,58 @@ if !pre.Allowed { return errors.New("budget exhausted") }
 // call LLM, get actuals
 actual := response.Usage.TotalTokens
 
-_, err = client.TrackUsage(ctx, billing.UsagePayload{
-    Product: "aisite", Feature: "llm_tokens", Date: "2026-05-15", DeviceFP: fp,
-    Action: "increment",
-    Count:  actual,
+_, err = usage.Track(ctx, c, usage.Payload{
+    Product:  "aisite",
+    Feature:  "llm_tokens",
+    Date:     "2026-05-15",
+    DeviceFP: fp,
+    Action:   "increment",
+    Count:    actual,
 })
 ```
 
-## Build-time secret injection
-
-```bash
-go build -ldflags "-X main.productSecret=$SPECTRA_BILLING_SECRET" ./cmd/spectra
-```
-
-The `productSecret` symbol must be a package-level `var string` in the
-binary's main package. Linker overrides it at build time; release pipelines
-load the secret from a vault.
-
-For local development, drop it in a `.env` and read at startup:
+## Loopback OAuth
 
 ```go
-secret := os.Getenv("AKIRA_BILLING_SECRET")
-if secret == "" {
-    log.Fatal("AKIRA_BILLING_SECRET unset")
-}
+import (
+    "github.com/akira-io/billing-sdk-go/loopback"
+)
+
+outcome, err := loopback.Login(ctx, c, loopback.Options{
+    Provider: "github",
+    Product:  "spectra",
+    Timeout:  5 * time.Minute,
+}, openBrowser)
 ```
 
-## Wire protocol
+## Migration from the flat `billing` package
 
-Signing scheme: HMAC-SHA256 over a canonical string that includes product
-slug, unix timestamp, nonce, HTTP method, request path, and a hash of the
-body.
+Pre-0.4 the package was a single `billing` root. The 0.4 release split the surface into the table above. The mapping is purely structural:
 
-Full spec: [docs/protocol.md](docs/protocol.md).
+| Old | New |
+|-----|-----|
+| `billing.NewClient` | `client.New` |
+| `billing.Client` | `client.Client` |
+| `billing.APIError` | `client.APIError` |
+| `billing.Canonical` / `Sign` / `NewNonce` | `signature.Canonical` / `Sign` / `NewNonce` |
+| `billing.RequestOTP` / `VerifyOTP` / `CustomerMe` / ... | `customer.RequestOTP` / `VerifyOTP` / `Me` / ... |
+| `billing.LicenseCheck` / `LicenseActivate` / ... | `license.Check` / `Activate` / ... |
+| `billing.DecodeLicense` / `VerifyLicense` / ... | `license.Decode` / `Verify` / ... |
+| `billing.Gate` / `NewGate` / `IsGateDenied` | `gate.Gate` / `gate.New` / `gate.IsDenied` |
+| `billing.UsageTracker` / `NewUsageTracker` | `usage.Tracker` / `usage.NewTracker` |
+| `billing.ComputeState` / `TrialDaysLeft` / `LicenseState*` | `lifecycle.ComputeState` / `TrialDaysLeft` / `State*` |
+| `billing.GeneratePkceChallenge` / `BuildOauthInitURL` | `oauth.GeneratePkceChallenge` / `BuildInitURL` |
+| `billing.ExchangeOauthCode` / `ListOauthProviders` | `oauth.Exchange` / `ListProviders` |
+| `billing.GithubAppInfo` / `MeGithubInstallations` / `GithubInstallationToken` | `github.GetAppInfo` / `Installations` / `IssueInstallationToken` |
+| `billing.Plans` / `StartTrial` / `LatestRelease` / `IssueDownload` / `CompleteDownload` | `downloads.Plans` / ... |
+| `*Client.LoopbackLogin` | `loopback.Login` (takes `*client.Client`) |
 
-The fixture vectors in `tests/fixtures/signature-vectors.json` are shared
-with the backend and the Rust crate. Run the test suite to confirm parity:
+Endpoint methods are now free functions taking `*client.Client`:
 
-```bash
-go test ./...
+```go
+// before
+me, err := c.CustomerMe(ctx)
+
+// after
+me, err := customer.Me(ctx, c)
 ```
-
-## Sister crate
-
-[`akira-io/billing-sdk-rust`](https://github.com/akira-io/billing-sdk-rust)
-mirrors this API for Tauri and other Rust apps. Both crates pass the same
-shared vectors.
-
-## License
-
-MIT.

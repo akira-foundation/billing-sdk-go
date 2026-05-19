@@ -1,7 +1,7 @@
 package desktop
 
 import (
-	billing "github.com/akira-io/billing-sdk-go"
+	"github.com/akira-io/billing-sdk-go/client"
 )
 
 // SessionStore binds an SDK Client to an OS keychain entry. Apps call Hydrate
@@ -14,9 +14,9 @@ func NewSessionStore(k TokenKeyring) *SessionStore {
 	return &SessionStore{keyring: k}
 }
 
-// Hydrate copies any saved token into client. Returns true when a token was
+// Hydrate copies any saved token into c. Returns true when a token was
 // found and applied.
-func (s *SessionStore) Hydrate(client *billing.Client) (bool, error) {
+func (s *SessionStore) Hydrate(c *client.Client) (bool, error) {
 	v, ok, err := s.keyring.Get()
 	if err != nil {
 		return false, err
@@ -24,23 +24,23 @@ func (s *SessionStore) Hydrate(client *billing.Client) (bool, error) {
 	if !ok {
 		return false, nil
 	}
-	client.SetCustomerToken(v)
+	c.SetCustomerToken(v)
 	return true, nil
 }
 
-func (s *SessionStore) Persist(client *billing.Client, token string) error {
+func (s *SessionStore) Persist(c *client.Client, token string) error {
 	if err := s.keyring.Set(token); err != nil {
 		return err
 	}
-	client.SetCustomerToken(token)
+	c.SetCustomerToken(token)
 	return nil
 }
 
-func (s *SessionStore) Clear(client *billing.Client) error {
+func (s *SessionStore) Clear(c *client.Client) error {
 	if err := s.keyring.Delete(); err != nil {
 		return err
 	}
-	client.SetCustomerToken("")
+	c.SetCustomerToken("")
 	return nil
 }
 

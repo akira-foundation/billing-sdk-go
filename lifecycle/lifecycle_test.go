@@ -1,8 +1,10 @@
-package billing
+package lifecycle
 
 import (
 	"testing"
 	"time"
+
+	"github.com/akira-io/billing-sdk-go/license"
 )
 
 func TestComputeState(t *testing.T) {
@@ -11,39 +13,39 @@ func TestComputeState(t *testing.T) {
 
 	cases := []struct {
 		name    string
-		payload *LicenseSnapshotPayload
-		want    LicenseState
+		payload *license.SnapshotPayload
+		want    State
 	}{
-		{"nil", nil, LicenseStateNone},
-		{"empty-valid", &LicenseSnapshotPayload{}, LicenseStateInvalid},
+		{"nil", nil, StateNone},
+		{"empty-valid", &license.SnapshotPayload{}, StateInvalid},
 		{
 			"active",
-			&LicenseSnapshotPayload{ValidUntil: now.Add(48 * time.Hour).Format(time.RFC3339), PlanKey: "pro_monthly"},
-			LicenseStateActive,
+			&license.SnapshotPayload{ValidUntil: now.Add(48 * time.Hour).Format(time.RFC3339), PlanKey: "pro_monthly"},
+			StateActive,
 		},
 		{
 			"trial-by-plan",
-			&LicenseSnapshotPayload{ValidUntil: now.Add(48 * time.Hour).Format(time.RFC3339), PlanKey: "pro:trial"},
-			LicenseStateTrialing,
+			&license.SnapshotPayload{ValidUntil: now.Add(48 * time.Hour).Format(time.RFC3339), PlanKey: "pro:trial"},
+			StateTrialing,
 		},
 		{
 			"trial-by-feature",
-			&LicenseSnapshotPayload{
+			&license.SnapshotPayload{
 				ValidUntil: now.Add(48 * time.Hour).Format(time.RFC3339),
 				PlanKey:    "pro_monthly",
 				Features:   map[string]bool{"__trial": true},
 			},
-			LicenseStateTrialing,
+			StateTrialing,
 		},
 		{
 			"grace",
-			&LicenseSnapshotPayload{ValidUntil: now.Add(-24 * time.Hour).Format(time.RFC3339), PlanKey: "pro"},
-			LicenseStateGrace,
+			&license.SnapshotPayload{ValidUntil: now.Add(-24 * time.Hour).Format(time.RFC3339), PlanKey: "pro"},
+			StateGrace,
 		},
 		{
 			"expired",
-			&LicenseSnapshotPayload{ValidUntil: now.Add(-30 * 24 * time.Hour).Format(time.RFC3339), PlanKey: "pro"},
-			LicenseStateExpired,
+			&license.SnapshotPayload{ValidUntil: now.Add(-30 * 24 * time.Hour).Format(time.RFC3339), PlanKey: "pro"},
+			StateExpired,
 		},
 	}
 
@@ -59,7 +61,7 @@ func TestComputeState(t *testing.T) {
 
 func TestTrialDaysLeft(t *testing.T) {
 	now := time.Date(2026, 1, 10, 12, 0, 0, 0, time.UTC)
-	p := &LicenseSnapshotPayload{
+	p := &license.SnapshotPayload{
 		ValidUntil: now.Add(72 * time.Hour).Format(time.RFC3339),
 		PlanKey:    "pro:trial",
 	}

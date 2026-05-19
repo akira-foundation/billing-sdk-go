@@ -4,14 +4,16 @@ import (
 	"context"
 	"errors"
 
-	billing "github.com/akira-io/billing-sdk-go"
+	"github.com/akira-io/billing-sdk-go/client"
+	"github.com/akira-io/billing-sdk-go/customer"
+	"github.com/akira-io/billing-sdk-go/license"
 )
 
 type AuthSnapshot struct {
-	Authenticated bool              `json:"authenticated"`
-	Licensed      bool              `json:"licensed"`
-	Customer      *billing.Customer `json:"customer,omitempty"`
-	Features      []string          `json:"features"`
+	Authenticated bool               `json:"authenticated"`
+	Licensed      bool               `json:"licensed"`
+	Customer      *customer.Customer `json:"customer,omitempty"`
+	Features      []string           `json:"features"`
 }
 
 func GuestSnapshot() AuthSnapshot {
@@ -28,18 +30,18 @@ func (s AuthSnapshot) HasFeature(key string) bool {
 }
 
 type RefreshOptions struct {
-	Product          string
-	FallbackFeature  string
+	Product         string
+	FallbackFeature string
 }
 
-func RefreshAuth(ctx context.Context, client *billing.Client, opts RefreshOptions) (AuthSnapshot, error) {
-	if client.CustomerToken == "" {
+func RefreshAuth(ctx context.Context, c *client.Client, opts RefreshOptions) (AuthSnapshot, error) {
+	if c.CustomerToken == "" {
 		return GuestSnapshot(), nil
 	}
 
-	customer, err := client.CustomerMe(ctx)
+	me, err := customer.Me(ctx, c)
 	if err != nil {
-		var apiErr *billing.APIError
+		var apiErr *client.APIError
 		if errors.As(err, &apiErr) && apiErr.Status == 401 {
 			return GuestSnapshot(), nil
 		}
@@ -47,13 +49,13 @@ func RefreshAuth(ctx context.Context, client *billing.Client, opts RefreshOption
 	}
 
 	features := []string{}
-	if resp, err := client.CustomerFeatures(ctx, opts.Product); err == nil {
+	if resp, err := customer.Features(ctx, c, opts.Product); err == nil {
 		features = resp.Features
 	}
 
 	licensed := len(features) > 0
 	if !licensed {
-		if resp, err := client.LicenseCheck(ctx, billing.LicenseCheckPayload{
+		if resp, err := license.Check(ctx, c, license.CheckPayload{
 			Product: opts.Product,
 			Feature: opts.FallbackFeature,
 		}); err == nil {
@@ -64,7 +66,7 @@ func RefreshAuth(ctx context.Context, client *billing.Client, opts RefreshOption
 	return AuthSnapshot{
 		Authenticated: true,
 		Licensed:      licensed,
-		Customer:      customer,
+		Customer:      me,
 		Features:      features,
 	}, nil
 }
