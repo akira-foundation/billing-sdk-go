@@ -7,6 +7,8 @@ Handles request signing, OTP login, full license lifecycle (check / activate
 tracking, downloads, trial start, and plans listing. Pass-through for any
 endpoint via `Client.Do()` (signed) or `Client.DoPublic()` (unsigned).
 
+> Full reference: [`docs/00-index.md`](docs/00-index.md) - one file per module, with the same numbered structure mirrored in the JS and Rust SDKs.
+
 ## Install
 
 ```bash
