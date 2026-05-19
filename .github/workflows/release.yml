@@ -1,15 +1,16 @@
-name: Publish
+name: release
 
 on:
   push:
     tags:
-      - 'v*'
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-*"
 
 permissions:
   contents: write
 
 jobs:
-  publish:
+  release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,39 +19,35 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
-
-      - name: Extract version from tag
-        id: version
-        run: echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          go-version: "1.23"
 
       - name: Test
         run: go test ./...
 
-      - name: Promote Unreleased to version
-        run: |
-          DATE=$(date -u +%Y-%m-%d)
-          VERSION=${GITHUB_REF_NAME#v}
-          sed -i -E "s/^## \[?[Uu]nreleased\]?/## [$VERSION] - $DATE/" CHANGELOG.md
+      - name: Install git-cliff
+        uses: taiki-e/install-action@v2
+        with:
+          tool: git-cliff
 
-      - name: Commit changelog
+      - name: Generate CHANGELOG
+        run: git-cliff --config cliff.toml --tag "${{ github.ref_name }}" --output CHANGELOG.md
+
+      - name: Commit CHANGELOG
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add CHANGELOG.md
-          git commit -m "chore: release ${{ github.ref_name }}" || true
-
-      - name: Push changelog
-        run: git push origin HEAD:main || true
+          git diff --cached --quiet || git commit -m "chore(changelog): ${{ github.ref_name }}"
+          git push origin HEAD:main || true
 
       - name: Extract release notes
         id: notes
         run: |
           {
             echo 'body<<EOF'
-            awk '/^## \[?v?${{ steps.version.outputs.tag }}/,/^## \[?v?/' CHANGELOG.md | head -n -1
+            git-cliff --config cliff.toml --latest --strip all
             echo 'EOF'
-          } >> $GITHUB_OUTPUT
+          } >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
         env:
