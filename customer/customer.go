@@ -168,3 +168,15 @@ func Downgrade(ctx context.Context, c *client.Client, payload DowngradePayload) 
 	}
 	return out, nil
 }
+
+func Resume(ctx context.Context, c *client.Client, product string) (*DowngradeResponse, error) {
+	body, err := json.Marshal(DowngradePayload{Product: product})
+	if err != nil {
+		return nil, err
+	}
+	out := &DowngradeResponse{}
+	if err := c.Do(ctx, "POST", "/api/me/subscription/resume", body, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
