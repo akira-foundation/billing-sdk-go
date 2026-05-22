@@ -142,3 +142,29 @@ func Invoices(ctx context.Context, c *client.Client, cursor string) (*InvoicesPa
 	}
 	return out, nil
 }
+
+type DowngradePayload struct {
+	Product    string `json:"product"`
+	TargetPlan string `json:"target_plan,omitempty"`
+}
+
+type DowngradeResponse struct {
+	CancelAtPeriodEnd bool    `json:"cancel_at_period_end"`
+	CancelAt          *string `json:"cancel_at"`
+	Plan              *string `json:"plan"`
+	ValidUntil        *string `json:"valid_until"`
+	Signature         *string `json:"signature"`
+	TargetPlan        *string `json:"target_plan"`
+}
+
+func Downgrade(ctx context.Context, c *client.Client, payload DowngradePayload) (*DowngradeResponse, error) {
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+	out := &DowngradeResponse{}
+	if err := c.Do(ctx, "POST", "/api/me/subscription/downgrade", body, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
