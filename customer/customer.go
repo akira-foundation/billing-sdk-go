@@ -58,6 +58,24 @@ type FeaturesResponse struct {
 	Features []string `json:"features"`
 }
 
+type Invoice struct {
+	ID          string  `json:"id"`
+	Number      *string `json:"number"`
+	Amount      int64   `json:"amount"`
+	Currency    string  `json:"currency"`
+	Date        string  `json:"date"`
+	PeriodStart string  `json:"period_start"`
+	PeriodEnd   string  `json:"period_end"`
+	PDFURL      *string `json:"pdf_url"`
+	HostedURL   *string `json:"hosted_url"`
+}
+
+type InvoicesPage struct {
+	Invoices   []Invoice `json:"invoices"`
+	HasMore    bool      `json:"has_more"`
+	NextCursor *string   `json:"next_cursor"`
+}
+
 func RequestOTP(ctx context.Context, c *client.Client, payload OtpRequestPayload) error {
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -107,6 +125,18 @@ func Features(ctx context.Context, c *client.Client, product string) (*FeaturesR
 func Portal(ctx context.Context, c *client.Client, returnURL string) (*PortalLink, error) {
 	path := "/api/billing/portal?return_url=" + url.QueryEscape(returnURL)
 	out := &PortalLink{}
+	if err := c.Do(ctx, "GET", path, nil, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func Invoices(ctx context.Context, c *client.Client, cursor string) (*InvoicesPage, error) {
+	path := "/api/me/invoices"
+	if cursor != "" {
+		path += "?starting_after=" + url.QueryEscape(cursor)
+	}
+	out := &InvoicesPage{}
 	if err := c.Do(ctx, "GET", path, nil, out); err != nil {
 		return nil, err
 	}
