@@ -4,6 +4,17 @@ All notable changes to `billing-sdk-go` are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the module adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-05-23
+
+### Added
+
+- Add UserToken endpoint.
+- Add Invoices endpoint and types.
+- Add ActivateOrRefresh license lifecycle helper.
+- Add Downgrade with payload and response types.
+- Add Resume to undo a scheduled cancellation.
+- Export ComputeState and TrialDaysLeft at root level for SDK parity.
+
 ## [0.4.0] - 2026-05-19
 
 ### Added
