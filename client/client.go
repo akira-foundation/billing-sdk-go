@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -27,7 +28,12 @@ func New(baseURL, productSlug, productSecret string) *Client {
 		BaseURL:       baseURL,
 		ProductSlug:   productSlug,
 		ProductSecret: productSecret,
-		HTTP:          &http.Client{Timeout: 10 * time.Second},
+		HTTP: &http.Client{
+			Timeout: 10 * time.Second,
+			CheckRedirect: func(req *http.Request, _ []*http.Request) error {
+				return fmt.Errorf("billing: unexpected redirect to %s", req.URL)
+			},
+		},
 	}
 }
 
@@ -36,9 +42,18 @@ func (c *Client) SetCustomerToken(token string) {
 }
 
 type APIError struct {
-	Status  int    `json:"-"`
-	Code    string `json:"error"`
-	Message string `json:"message"`
+	Status     int    `json:"-"`
+	Code       string `json:"error"`
+	Message    string `json:"message"`
+	RetryAfter int    `json:"-"`
+}
+
+func parseRetryAfter(h http.Header) int {
+	secs, err := strconv.Atoi(strings.TrimSpace(h.Get("Retry-After")))
+	if err != nil {
+		return 0
+	}
+	return secs
 }
 
 func (e *APIError) reason() string {
@@ -90,7 +105,7 @@ func (c *Client) Do(ctx context.Context, method, path string, body []byte, out a
 
 	if resp.StatusCode >= 400 {
 		raw, _ := io.ReadAll(resp.Body)
-		apiErr := &APIError{Status: resp.StatusCode}
+		apiErr := &APIError{Status: resp.StatusCode, RetryAfter: parseRetryAfter(resp.Header)}
 		_ = json.Unmarshal(raw, apiErr)
 		if apiErr.Code == "" && apiErr.Message == "" {
 			apiErr.Code = string(raw)
@@ -129,7 +144,7 @@ func (c *Client) DoPublic(ctx context.Context, method, path string, body []byte,
 
 	if resp.StatusCode >= 400 {
 		raw, _ := io.ReadAll(resp.Body)
-		apiErr := &APIError{Status: resp.StatusCode}
+		apiErr := &APIError{Status: resp.StatusCode, RetryAfter: parseRetryAfter(resp.Header)}
 		_ = json.Unmarshal(raw, apiErr)
 		if apiErr.Code == "" && apiErr.Message == "" {
 			apiErr.Code = string(raw)
