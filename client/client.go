@@ -46,6 +46,7 @@ type APIError struct {
 	Code       string `json:"error"`
 	Message    string `json:"message"`
 	RetryAfter int    `json:"-"`
+	Body       []byte `json:"-"`
 }
 
 func parseRetryAfter(h http.Header) int {
@@ -105,7 +106,7 @@ func (c *Client) Do(ctx context.Context, method, path string, body []byte, out a
 
 	if resp.StatusCode >= 400 {
 		raw, _ := io.ReadAll(resp.Body)
-		apiErr := &APIError{Status: resp.StatusCode, RetryAfter: parseRetryAfter(resp.Header)}
+		apiErr := &APIError{Status: resp.StatusCode, RetryAfter: parseRetryAfter(resp.Header), Body: raw}
 		_ = json.Unmarshal(raw, apiErr)
 		if apiErr.Code == "" && apiErr.Message == "" {
 			apiErr.Code = string(raw)
@@ -144,7 +145,7 @@ func (c *Client) DoPublic(ctx context.Context, method, path string, body []byte,
 
 	if resp.StatusCode >= 400 {
 		raw, _ := io.ReadAll(resp.Body)
-		apiErr := &APIError{Status: resp.StatusCode, RetryAfter: parseRetryAfter(resp.Header)}
+		apiErr := &APIError{Status: resp.StatusCode, RetryAfter: parseRetryAfter(resp.Header), Body: raw}
 		_ = json.Unmarshal(raw, apiErr)
 		if apiErr.Code == "" && apiErr.Message == "" {
 			apiErr.Code = string(raw)
