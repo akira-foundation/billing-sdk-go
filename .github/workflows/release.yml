@@ -29,6 +29,17 @@ jobs:
         with:
           tool: git-cliff
 
+      - name: Generate CHANGELOG
+        run: git-cliff --config cliff.toml --tag "${{ github.ref_name }}" --output CHANGELOG.md
+
+      - name: Commit CHANGELOG
+        run: |
+          git config user.name "$(git show -s --format='%an' HEAD)"
+          git config user.email "$(git show -s --format='%ae' HEAD)"
+          git add CHANGELOG.md
+          git diff --cached --quiet || git commit -m "chore(changelog): ${{ github.ref_name }}"
+          git push origin HEAD:main || true
+
       - name: Extract release notes
         id: notes
         run: |
