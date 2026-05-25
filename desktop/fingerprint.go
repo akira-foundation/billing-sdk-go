@@ -15,7 +15,9 @@ type DeviceFingerprint struct {
 }
 
 // DeviceFingerprintFor returns a stable per-machine fingerprint derived from
-// the OS machine id, the runtime GOOS and the supplied app version.
+// the OS machine id and the runtime GOOS. The app version is carried as
+// metadata only; it is deliberately excluded from the hash so the fingerprint
+// stays stable across application updates.
 func DeviceFingerprintFor(appVersion string) DeviceFingerprint {
 	id, err := machineid.ID()
 	if err != nil {
@@ -25,8 +27,6 @@ func DeviceFingerprintFor(appVersion string) DeviceFingerprint {
 	h.Write([]byte(id))
 	h.Write([]byte("::"))
 	h.Write([]byte(runtime.GOOS))
-	h.Write([]byte("::"))
-	h.Write([]byte(appVersion))
 	return DeviceFingerprint{
 		Fingerprint: hex.EncodeToString(h.Sum(nil)),
 		Platform:    runtime.GOOS,
