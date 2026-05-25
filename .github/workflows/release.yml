@@ -32,6 +32,31 @@ jobs:
       - name: Generate CHANGELOG
         run: git-cliff --config cliff.toml --tag "${{ github.ref_name }}" --output CHANGELOG.md
 
+      - name: Ensure CHANGELOG contains tag
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          DATE="$(date -u +%F)"
+          if ! grep -q "^## \\[$VERSION\\]" CHANGELOG.md; then
+            awk -v version="$VERSION" -v date="$DATE" '
+              BEGIN {
+                inserted = 0
+                entry = "## [" version "] - " date "\n\n### Changed\n\n- Release v" version ".\n"
+              }
+              /^## \[/ && inserted == 0 {
+                print entry
+                inserted = 1
+              }
+              { print }
+              END {
+                if (inserted == 0) {
+                  print ""
+                  print entry
+                }
+              }
+            ' CHANGELOG.md > CHANGELOG.md.tmp
+            mv CHANGELOG.md.tmp CHANGELOG.md
+          fi
+
       - name: Commit CHANGELOG
         run: |
           git config user.name "$(git show -s --format='%an' HEAD)"
