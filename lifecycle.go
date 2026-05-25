@@ -25,3 +25,7 @@ func ComputeState(payload *license.SnapshotPayload, graceWindow time.Duration, n
 func TrialDaysLeft(payload *license.SnapshotPayload, now time.Time) int {
 	return lifecycle.TrialDaysLeft(payload, now)
 }
+
+func GraceDaysLeft(payload *license.SnapshotPayload, now time.Time) int {
+	return lifecycle.GraceDaysLeft(payload, now)
+}

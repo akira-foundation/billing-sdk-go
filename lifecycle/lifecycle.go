@@ -59,6 +59,32 @@ func TrialDaysLeft(payload *license.SnapshotPayload, now time.Time) int {
 	return days
 }
 
+// GraceDaysLeft returns the number of days remaining in the offline grace window.
+// Returns 0 when payload is nil, not in grace, or grace has already elapsed.
+func GraceDaysLeft(payload *license.SnapshotPayload, now time.Time) int {
+	if payload == nil || payload.ValidUntil == "" {
+		return 0
+	}
+	expiry, err := time.Parse(time.RFC3339, payload.ValidUntil)
+	if err != nil || now.Before(expiry) {
+		return 0
+	}
+	var graceDays uint32 = 7
+	if payload.OfflineGraceDays != nil {
+		graceDays = *payload.OfflineGraceDays
+	}
+	graceUntil := expiry.Add(time.Duration(graceDays) * 24 * time.Hour)
+	delta := graceUntil.Sub(now)
+	if delta <= 0 {
+		return 0
+	}
+	days := int(delta.Hours() / 24)
+	if delta%(24*time.Hour) > 0 {
+		days++
+	}
+	return days
+}
+
 func isTrialPayload(payload *license.SnapshotPayload) bool {
 	if payload == nil {
 		return false

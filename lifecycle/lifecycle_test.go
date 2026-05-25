@@ -72,3 +72,38 @@ func TestTrialDaysLeft(t *testing.T) {
 		t.Fatalf("nil should be 0 got %d", got)
 	}
 }
+
+func TestGraceDaysLeft(t *testing.T) {
+	now := time.Date(2026, 1, 10, 12, 0, 0, 0, time.UTC)
+	graceDays := uint32(7)
+
+	cases := []struct {
+		name    string
+		payload *license.SnapshotPayload
+		want    int
+	}{
+		{"nil", nil, 0},
+		{"not-expired", &license.SnapshotPayload{
+			ValidUntil: now.Add(24 * time.Hour).Format(time.RFC3339),
+		}, 0},
+		{"mid-grace-default", &license.SnapshotPayload{
+			ValidUntil: now.Add(-3 * 24 * time.Hour).Format(time.RFC3339),
+		}, 4},
+		{"mid-grace-override", &license.SnapshotPayload{
+			ValidUntil:       now.Add(-3 * 24 * time.Hour).Format(time.RFC3339),
+			OfflineGraceDays: &graceDays,
+		}, 4},
+		{"grace-elapsed", &license.SnapshotPayload{
+			ValidUntil: now.Add(-10 * 24 * time.Hour).Format(time.RFC3339),
+		}, 0},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := GraceDaysLeft(tc.payload, now)
+			if got != tc.want {
+				t.Fatalf("want %d got %d", tc.want, got)
+			}
+		})
+	}
+}
