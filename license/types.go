@@ -19,6 +19,7 @@ const (
 type UsageFeatureState struct {
 	Type            string      `json:"type"`
 	Enabled         bool        `json:"enabled,omitempty"`
+	Limit           *uint64     `json:"limit,omitempty"`
 	Allowance       uint64      `json:"allowance,omitempty"`
 	Period          UsagePeriod `json:"period,omitempty"`
 	PeriodStart     string      `json:"period_start,omitempty"`
