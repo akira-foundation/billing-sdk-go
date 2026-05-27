@@ -148,6 +148,32 @@ func TestComputeRemainingBool(t *testing.T) {
 	}
 }
 
+func TestComputeRemainingCount(t *testing.T) {
+	p := basePayload()
+	repoCap := uint64(3)
+	p.Usage = map[string]UsageFeatureState{
+		"repos": {Type: "count", Limit: &repoCap},
+	}
+	remaining, unlim, ok := ComputeRemaining(p, "repos", 0)
+	if !ok || unlim || remaining != 3 {
+		t.Fatalf("got (%d,%v,%v) want 3", remaining, unlim, ok)
+	}
+	remaining, _, ok = ComputeRemaining(p, "repos", 2)
+	if !ok || remaining != 1 {
+		t.Fatalf("got (%d,%v) want 1", remaining, ok)
+	}
+	remaining, _, ok = ComputeRemaining(p, "repos", 5)
+	if !ok || remaining != 0 {
+		t.Fatalf("got (%d,%v) want 0", remaining, ok)
+	}
+
+	p.Usage["repos"] = UsageFeatureState{Type: "count", Limit: nil}
+	remaining, unlim, ok = ComputeRemaining(p, "repos", 100)
+	if !ok || !unlim || remaining != math.MaxUint64 {
+		t.Fatalf("got (%d,%v,%v) want unlim", remaining, unlim, ok)
+	}
+}
+
 func TestExpiryAndGrace(t *testing.T) {
 	p := basePayload()
 	now := time.Date(2026, 5, 20, 0, 0, 0, 0, time.UTC)

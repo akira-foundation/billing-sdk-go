@@ -68,6 +68,14 @@ func ComputeRemaining(payload SnapshotPayload, feature string, consumedLocal uin
 			return math.MaxUint64, true, true
 		}
 		return 0, false, true
+	case "count":
+		if state.Limit == nil {
+			return math.MaxUint64, true, true
+		}
+		if consumedLocal >= *state.Limit {
+			return 0, false, true
+		}
+		return *state.Limit - consumedLocal, false, true
 	case "counter":
 		total := state.ConsumedAtIssue + consumedLocal
 		if total >= state.Allowance {
