@@ -62,3 +62,12 @@ func PublicKeys(ctx context.Context, c *client.Client) (*PublicKeysResponse, err
 	}
 	return out, nil
 }
+
+func PublicFreeSnapshot(ctx context.Context, c *client.Client, product string) (*FreeSnapshotResponse, error) {
+	out := &FreeSnapshotResponse{}
+	path := "/api/v1/products/" + product + "/free-snapshot"
+	if err := c.DoPublic(ctx, "GET", path, nil, out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}

@@ -114,4 +114,52 @@ func TestGateNoLicense(t *testing.T) {
 	if acc.Allowed || acc.Reason != "no_license" {
 		t.Fatalf("want no_license got %+v", acc)
 	}
+	if acc.ReasonKind != DenyNoLicense {
+		t.Fatalf("want ReasonKind no_license got %q", acc.ReasonKind)
+	}
+}
+
+func TestDenyReasonKindForExpired(t *testing.T) {
+	now := time.Date(2026, 1, 10, 12, 0, 0, 0, time.UTC)
+	payload := newTestPayload(now.Add(-30 * 24 * time.Hour))
+
+	gate := New(Options{
+		Loader: func(context.Context) (*license.SignedLicense, *license.SnapshotPayload, error) {
+			return &license.SignedLicense{}, payload, nil
+		},
+		GraceWindow: 7 * 24 * time.Hour,
+		Now:         func() time.Time { return now },
+	})
+
+	acc, err := gate.Check(context.Background(), "mock_server")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if acc.ReasonKind != DenyLicenseExpired {
+		t.Fatalf("want ReasonKind license_expired got %q", acc.ReasonKind)
+	}
+	if acc.Reason != "license_expired" {
+		t.Fatalf("want Reason string license_expired got %q", acc.Reason)
+	}
+}
+
+func TestDenyReasonKindForFeatureDisabled(t *testing.T) {
+	now := time.Date(2026, 1, 10, 12, 0, 0, 0, time.UTC)
+	payload := newTestPayload(now.Add(30 * 24 * time.Hour))
+
+	gate := New(Options{
+		Loader: func(context.Context) (*license.SignedLicense, *license.SnapshotPayload, error) {
+			return &license.SignedLicense{}, payload, nil
+		},
+		GraceWindow: 7 * 24 * time.Hour,
+		Now:         func() time.Time { return now },
+	})
+
+	acc, err := gate.Check(context.Background(), "locked_feature")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if acc.ReasonKind != DenyFeatureDisabled {
+		t.Fatalf("want ReasonKind feature_disabled got %q", acc.ReasonKind)
+	}
 }

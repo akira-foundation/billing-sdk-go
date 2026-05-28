@@ -22,6 +22,20 @@ type Options struct {
 	Now              func() time.Time
 }
 
+type DenyReason string
+
+const (
+	DenyNoLoader               DenyReason = "no_loader"
+	DenyNoLicense              DenyReason = "no_license"
+	DenyVerifyFailed           DenyReason = "verify_failed"
+	DenyLicenseExpired         DenyReason = "license_expired"
+	DenyLicenseInvalid         DenyReason = "license_invalid"
+	DenyFeatureDisabled        DenyReason = "feature_disabled"
+	DenyFeatureMissing         DenyReason = "feature_missing"
+	DenyLimitReached           DenyReason = "limit_reached"
+	DenyLocalConsumptionFailed DenyReason = "local_consumption_failed"
+)
+
 type FeatureAccess struct {
 	Feature    string
 	Allowed    bool
@@ -29,8 +43,14 @@ type FeatureAccess struct {
 	Unlimited  bool
 	Remaining  uint64
 	Reason     string
+	ReasonKind DenyReason
 	Plan       string
 	State      lifecycle.State
+}
+
+func (a *FeatureAccess) deny(reason DenyReason) {
+	a.ReasonKind = reason
+	a.Reason = string(reason)
 }
 
 type Denied struct {
@@ -68,7 +88,7 @@ func (g *Gate) Check(ctx context.Context, feature string) (FeatureAccess, error)
 	access := FeatureAccess{Feature: feature, State: lifecycle.StateNone}
 
 	if g.opts.Loader == nil {
-		access.Reason = "no_loader"
+		access.deny(DenyNoLoader)
 		return access, nil
 	}
 
@@ -77,11 +97,11 @@ func (g *Gate) Check(ctx context.Context, feature string) (FeatureAccess, error)
 
 	_, payload, err := g.opts.Loader(ctx)
 	if err != nil {
-		access.Reason = "verify_failed"
+		access.deny(DenyVerifyFailed)
 		return access, err
 	}
 	if payload == nil {
-		access.Reason = "no_license"
+		access.deny(DenyNoLicense)
 		return access, nil
 	}
 
@@ -90,22 +110,25 @@ func (g *Gate) Check(ctx context.Context, feature string) (FeatureAccess, error)
 	access.State = lifecycle.ComputeState(payload, g.opts.GraceWindow, now)
 
 	switch access.State {
-	case lifecycle.StateExpired, lifecycle.StateInvalid:
-		access.Reason = "license_" + string(access.State)
+	case lifecycle.StateExpired:
+		access.deny(DenyLicenseExpired)
+		return access, nil
+	case lifecycle.StateInvalid:
+		access.deny(DenyLicenseInvalid)
 		return access, nil
 	}
 
 	if enabled, ok := payload.Features[feature]; ok {
 		access.HasFeature = enabled
 		if !enabled {
-			access.Reason = "feature_disabled"
+			access.deny(DenyFeatureDisabled)
 			return access, nil
 		}
 	}
 
 	consumed, err := g.opts.LocalConsumption(ctx, feature)
 	if err != nil {
-		access.Reason = "local_consumption_failed"
+		access.deny(DenyLocalConsumptionFailed)
 		return access, err
 	}
 
@@ -116,7 +139,7 @@ func (g *Gate) Check(ctx context.Context, feature string) (FeatureAccess, error)
 			access.Unlimited = true
 			return access, nil
 		}
-		access.Reason = "feature_missing"
+		access.deny(DenyFeatureMissing)
 		return access, nil
 	}
 
@@ -128,7 +151,7 @@ func (g *Gate) Check(ctx context.Context, feature string) (FeatureAccess, error)
 		return access, nil
 	}
 
-	access.Reason = "limit_reached"
+	access.deny(DenyLimitReached)
 	return access, nil
 }
 
