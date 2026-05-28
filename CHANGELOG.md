@@ -4,6 +4,12 @@ All notable changes to `billing-sdk-go` are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the module adheres
 to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-05-28
+
+### Added
+
+- Free snapshot client and structured deny reasons.
+
 ## [1.3.0] - 2026-05-27
 
 ### Added
