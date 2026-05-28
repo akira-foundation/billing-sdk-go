@@ -121,3 +121,9 @@ type PublicKeysResponse struct {
 	Keys        []PublicKey `json:"keys"`
 	ActiveKeyID *string     `json:"active_key_id"`
 }
+
+type FreeSnapshotResponse struct {
+	Product string        `json:"product"`
+	Plan    string        `json:"plan"`
+	License SignedLicense `json:"license"`
+}
