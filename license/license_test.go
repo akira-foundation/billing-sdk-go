@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"math"
+	"strings"
 	"testing"
 	"time"
 )
@@ -249,5 +250,37 @@ func TestPeriodResetAt(t *testing.T) {
 	p.Usage = map[string]UsageFeatureState{"x": {Type: "bool", Enabled: true}}
 	if !PeriodResetAt(p, "x").IsZero() {
 		t.Fatalf("bool should return zero")
+	}
+}
+
+func TestPaymentStatusRoundTripsThroughJSON(t *testing.T) {
+	p := basePayload()
+	status := "past_due"
+	p.PaymentStatus = &status
+
+	raw, err := json.Marshal(p)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if !strings.Contains(string(raw), "\"payment_status\":\"past_due\"") {
+		t.Fatalf("missing payment_status in json: %s", string(raw))
+	}
+
+	var decoded SnapshotPayload
+	if err := json.Unmarshal(raw, &decoded); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if decoded.PaymentStatus == nil || *decoded.PaymentStatus != "past_due" {
+		t.Fatalf("got %v", decoded.PaymentStatus)
+	}
+}
+
+func TestPaymentStatusOmittedWhenNil(t *testing.T) {
+	raw, err := json.Marshal(basePayload())
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	if strings.Contains(string(raw), "payment_status") {
+		t.Fatalf("nil PaymentStatus should be omitted, got %s", string(raw))
 	}
 }
