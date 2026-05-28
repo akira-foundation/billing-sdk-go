@@ -45,6 +45,7 @@ type SnapshotPayload struct {
 	UpdatesWindowDays   *uint32                      `json:"updates_window_days,omitempty"`
 	OfflineGraceDays    *uint32                      `json:"offline_grace_days,omitempty"`
 	DeviceLimit         *uint32                      `json:"device_limit,omitempty"`
+	PaymentStatus       *string                      `json:"payment_status,omitempty"`
 }
 
 type SignedLicense struct {
